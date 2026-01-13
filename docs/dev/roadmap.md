@@ -15,6 +15,9 @@ Acceptance criteria:
 2) State management choice (Riverpod/Bloc) and a simple in-memory session store
 3) Bucket definitions + ordering (from `docs/product/mtg_turn_model.md`)
 
+### Phase 0.5 — Navigation shell (optional)
+3.1) App drawer (hamburger) navigation: Timeline / Decks
+
 ### Phase 1 — Timeline UI (no camera yet)
 4) Timeline screen: ordered step sections (collapsible)
 5) Add dummy items (dev-only) to validate layout on iPhone 15 Pro Max
@@ -77,8 +80,16 @@ Acceptance criteria:
 32) Widget tests: timeline render, swipe+undo, reorder basics
 33) “No network required” verification
 
+### Phase 11 — Deck library (post-MVP)
+Goal: avoid rescanning the same cards across games by saving OCR text (and later, optional thumbnails) into named decks.
+34) Deck list screen (create/rename/delete)
+35) Deck detail editor (add/edit/delete saved cards)
+36) Add saved card to session timeline (pick bucket, then reorder/move as needed)
+37) Optional: export/import decks as JSON (share between devices without accounts)
+38) Optional: store small thumbnails per saved card (must still follow “no originals” rule)
+
 ## Do not start yet (scope guard)
 - Cloud sync/accounts
 - Cloud OCR
-- Persistent storage across sessions
+- Persistent timeline sessions across restarts (unless explicitly added)
 - Card database integration

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_drawer.dart';
+import '../../app/routes.dart';
+import '../../decks/deck_library_scope.dart';
 import '../../mtg/buckets.dart';
 import '../../session/session_scope.dart';
 import '../../session/session_store.dart';
@@ -14,6 +17,7 @@ class TimelineScreen extends StatelessWidget {
     final store = SessionScope.of(context);
 
     return Scaffold(
+      drawer: const AppDrawer(currentRoute: AppRoutes.timeline),
       appBar: AppBar(
         title: const Text('Current Turn'),
         actions: [
@@ -235,11 +239,111 @@ class _BucketBodySliver extends StatelessWidget {
         if (selectedBucketId == null) return;
         store.moveItem(itemId, selectedBucketId);
         break;
+      case _ItemMenuAction.saveToDeck:
+        await _saveToDeck(context, store: store, itemId: itemId);
+        break;
       case _ItemMenuAction.trash:
         if (!allowTrash) return;
         _trashWithUndo(context, store, itemId);
         break;
     }
+  }
+
+  Future<void> _saveToDeck(
+    BuildContext context, {
+    required SessionStore store,
+    required String itemId,
+  }) async {
+    final item = store.itemById(itemId);
+    if (item == null) return;
+
+    final deckStore = DeckLibraryScope.of(context);
+    if (!deckStore.isLoaded) {
+      await deckStore.load();
+    }
+    if (!context.mounted) return;
+
+    const createDeckSentinel = '__create_deck__';
+
+    Future<String?> createDeckAndReturnId() async {
+      final controller = TextEditingController();
+      try {
+        final name =
+            await showDialog<String>(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: const Text('New deck'),
+                  content: TextField(
+                    controller: controller,
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(labelText: 'Deck name'),
+                    onSubmitted: (value) => Navigator.of(context).pop(value),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () =>
+                          Navigator.of(context).pop(controller.text),
+                      child: const Text('Create'),
+                    ),
+                  ],
+                );
+              },
+            ) ??
+            '';
+
+        if (name.trim().isEmpty) return null;
+        final before = deckStore.decks.length;
+        await deckStore.createDeck(name);
+        if (deckStore.decks.length <= before) return null;
+        return deckStore.decks.last.id;
+      } finally {
+        controller.dispose();
+      }
+    }
+
+    String? pickedDeckId;
+    if (deckStore.decks.isEmpty) {
+      if (!context.mounted) return;
+      pickedDeckId = await createDeckAndReturnId();
+    } else {
+      if (!context.mounted) return;
+      pickedDeckId = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) =>
+            _DeckPickerSheet(createDeckSentinel: createDeckSentinel),
+      );
+    }
+
+    if (pickedDeckId == null) return;
+
+    final deckId = pickedDeckId == createDeckSentinel
+        ? await createDeckAndReturnId()
+        : pickedDeckId;
+    if (deckId == null) return;
+
+    final defaultBucketId = item.bucketId == MtgBuckets.trash.id
+        ? item.previousBucketId
+        : item.bucketId;
+
+    await deckStore.addCardToDeck(
+      deckId,
+      label: item.label,
+      ocrText: item.ocrText,
+      note: item.note,
+      defaultBucketId: defaultBucketId,
+    );
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(const SnackBar(content: Text('Saved to deck')));
   }
 }
 
@@ -273,7 +377,7 @@ class _VisibleStepsSheet extends StatelessWidget {
   }
 }
 
-enum _ItemMenuAction { move, trash }
+enum _ItemMenuAction { move, saveToDeck, trash }
 
 class _ItemMenu extends StatelessWidget {
   const _ItemMenu({required this.onSelected, required this.allowTrash});
@@ -293,6 +397,10 @@ class _ItemMenu extends StatelessWidget {
             value: _ItemMenuAction.move,
             child: Text('Move to…'),
           ),
+          const PopupMenuItem(
+            value: _ItemMenuAction.saveToDeck,
+            child: Text('Save to deck…'),
+          ),
           if (allowTrash)
             const PopupMenuItem(
               value: _ItemMenuAction.trash,
@@ -300,6 +408,52 @@ class _ItemMenu extends StatelessWidget {
             ),
         ];
       },
+    );
+  }
+}
+
+class _DeckPickerSheet extends StatelessWidget {
+  const _DeckPickerSheet({required this.createDeckSentinel});
+
+  final String createDeckSentinel;
+
+  @override
+  Widget build(BuildContext context) {
+    final deckStore = DeckLibraryScope.of(context);
+
+    return SafeArea(
+      child: AnimatedBuilder(
+        animation: deckStore,
+        builder: (context, _) {
+          if (!deckStore.isLoaded) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(title: Text('Save to deck')),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text('New deck…'),
+                onTap: () => Navigator.of(context).pop(createDeckSentinel),
+              ),
+              if (deckStore.decks.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No decks yet. Create one to save this card.'),
+                )
+              else
+                for (final deck in deckStore.decks)
+                  ListTile(
+                    title: Text(deck.name),
+                    subtitle: Text('${deck.cards.length} saved cards'),
+                    onTap: () => Navigator.of(context).pop(deck.id),
+                  ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

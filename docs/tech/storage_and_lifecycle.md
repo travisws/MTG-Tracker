@@ -1,4 +1,4 @@
-# Storage and Lifecycle (Session-only)
+# Storage and Lifecycle (Session timeline + Deck library)
 
 ## Goal
 Never persist full-resolution photos. Keep only:
@@ -6,7 +6,14 @@ Never persist full-resolution photos. Keep only:
 - Small thumbnail (art crop)
 - Session metadata (bucket + order + notes)
 
-Everything must be wiped on Reset.
+Everything in the session must be wiped on Reset.
+
+## Deck library (reusable, local)
+If using decks, the app may persist:
+- Deck + saved-card metadata (labels/notes)
+- OCR text (string)
+
+Do not persist original photos or intermediate crops for decks. (Thumbnails may be added later only if constraints are updated explicitly.)
 
 ## Recommended approach
 - Metadata: in-memory only (Riverpod/Bloc/etc.)
@@ -29,6 +36,8 @@ Reset must:
 - Clear session store (items, buckets, ordering, notes)
 - Delete the app’s thumbnail folder/files in temp/cache
 - Return to empty timeline state
+
+Reset does not delete the deck library; decks are deleted from the Decks screen.
 
 Optional (recommended):
 - On app startup, purge the thumbnail folder to guarantee blank sessions after relaunch.

@@ -11,7 +11,8 @@ A “timeline item” is a reminder entry with:
 - An order within that bucket
 - Optional note/label
 
-Session-only: everything is temporary and wipes on Reset.
+Session-only timeline: everything on the current timeline is temporary and wipes on Reset.
+Deck library (optional): saved decks/cards are reusable across sessions and have their own delete controls; they store only text/metadata (no original photos).
 
 ## MVP user stories
 1) As a player, I can take a photo of a card and crop the rules text so the app can OCR it.
@@ -19,7 +20,8 @@ Session-only: everything is temporary and wipes on Reset.
 3) As a player, I can place the item into the correct turn step bucket (Upkeep, Attackers, etc.).
 4) As a player, I can reorder items within a bucket.
 5) As a player, I can swipe an item away to Trash and undo/restore it during the session.
-6) As a player, pressing Reset wipes everything (data + thumbnails).
+6) As a player, pressing Reset wipes the current session (timeline data + thumbnails).
+7) As a player, I can save reminders into decks and add them back into a session later (no rescanning).
 
 ## Out of scope (MVP)
 - Any network sync / accounts / cloud storage

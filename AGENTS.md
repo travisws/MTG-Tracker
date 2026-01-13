@@ -32,10 +32,11 @@ Not supporting: web, Windows, Linux desktop.
 - Organize by feature: `lib/features/<feature>/` owns its screen + widgets; shared models in `lib/models/`, MTG domain constants in `lib/mtg/`, session state in `lib/session/`.
 - Keep UI “dumb”: business rules and mutations live in the session store (or later, dedicated services), not inside widgets.
 - Keep diffs incremental: avoid broad refactors unless they directly unblock the milestone; add/adjust tests alongside behavior changes.
-- Maintain session-only guarantees: no persistence across app restarts; Reset must clear in-memory state and purge cached thumbnails.
+- Maintain session-only timeline guarantees: Reset must clear in-memory session state and purge cached thumbnails; deck library persistence is allowed only for saved decks/cards and must be user-deletable.
 
 ## Non-negotiable constraints
-- Session-only: nothing persists after user presses Reset.
+- Session-only timeline: current timeline items/ordering/notes/OCR text must be wiped on Reset.
+- Deck library is separate: saved decks/cards may persist locally across sessions and must have a clear “Delete all decks” control.
 - On-device OCR only (ML Kit). No cloud OCR. No network required.
 - Do not keep/store original or full-resolution photos.
 - Workflow must purge originals and intermediate crops immediately after generating OCR text + thumbnail.
