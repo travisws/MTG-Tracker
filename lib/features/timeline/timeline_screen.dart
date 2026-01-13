@@ -7,6 +7,7 @@ import '../../app/app_drawer.dart';
 import '../../app/routes.dart';
 import '../../decks/deck_library_scope.dart';
 import '../../decks/deck_library_store.dart';
+import '../../features/capture/capture_flow.dart';
 import '../../mtg/buckets.dart';
 import '../../models/timeline_item.dart';
 import '../../models/deck.dart';
@@ -81,8 +82,8 @@ class TimelineScreen extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: null,
-        tooltip: 'Capture (coming soon)',
+        onPressed: () => CaptureFlow.start(context),
+        tooltip: 'Capture card',
         child: const Icon(Icons.add_a_photo_outlined),
       ),
       body: CustomScrollView(

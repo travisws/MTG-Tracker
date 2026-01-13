@@ -1,12 +1,13 @@
 # Roadmap (Feature Build Order)
 
 ## Current focus (next tasks)
-- Phase 0–1: project scaffolding + timeline UI skeleton
+- Phase 3: capture pipeline entry + two-step crop (no OCR yet)
 Acceptance criteria:
 - App runs on iOS + Android
-- Timeline screen shows all buckets in correct order
-- Collapsible sections work
-- Item row widget exists (placeholder thumbnail + placeholder text)
+- Capture flow prompts for camera or library
+- Two-step crop (text then art) completes and adds a timeline item
+- Thumbnails are generated and stored in temp/cache; originals/crops are purged
+- OCR is still pending (placeholder text)
 
 ## Feature build order (MVP-first)
 
