@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../decks/deck_library_scope.dart';
@@ -7,6 +9,7 @@ import '../../models/timeline_item.dart';
 import '../../mtg/buckets.dart';
 import '../../session/session_scope.dart';
 import '../../session/session_store.dart';
+import '../../session/session_item_id.dart';
 
 class DeckDetailScreen extends StatelessWidget {
   const DeckDetailScreen({required this.deckId, super.key});
@@ -177,11 +180,11 @@ class DeckDetailScreen extends StatelessWidget {
     );
   }
 
-  void _addAllToTimeline(
+  Future<void> _addAllToTimeline(
     BuildContext context, {
     required SessionStore sessionStore,
     required Deck deck,
-  }) {
+  }) async {
     if (deck.cards.isEmpty) return;
 
     final allowedBucketIds = <String>{
@@ -196,13 +199,17 @@ class DeckDetailScreen extends StatelessWidget {
               allowedBucketIds.contains(card.defaultBucketId)
           ? card.defaultBucketId!
           : MtgBuckets.staticEffects.id;
+      final thumbnailPath = await sessionStore.cacheThumbnailBytes(
+        card.thumbnailBytes,
+      );
       sessionStore.addItem(
         TimelineItem(
-          id: _newSessionItemId(),
+          id: newSessionItemId(),
           bucketId: bucketId,
           label: card.label,
           ocrText: card.ocrText,
           note: card.note,
+          thumbnailPath: thumbnailPath,
         ),
       );
       added += 1;
@@ -228,13 +235,17 @@ class DeckDetailScreen extends StatelessWidget {
     );
     if (selectedBucketId == null) return;
 
+    final thumbnailPath = await sessionStore.cacheThumbnailBytes(
+      card.thumbnailBytes,
+    );
     sessionStore.addItem(
       TimelineItem(
-        id: _newSessionItemId(),
+        id: newSessionItemId(),
         bucketId: selectedBucketId,
         label: card.label,
         ocrText: card.ocrText,
         note: card.note,
+        thumbnailPath: thumbnailPath,
       ),
     );
 
@@ -244,11 +255,6 @@ class DeckDetailScreen extends StatelessWidget {
       ..showSnackBar(const SnackBar(content: Text('Added to timeline')));
   }
 
-  static int _sequence = 0;
-  static String _newSessionItemId() {
-    _sequence = (_sequence + 1) % 1000000;
-    return '${DateTime.now().microsecondsSinceEpoch}-$_sequence';
-  }
 }
 
 class _DeckCardTile extends StatelessWidget {
@@ -267,6 +273,7 @@ class _DeckCardTile extends StatelessWidget {
     final deckStore = DeckLibraryScope.of(context);
 
     return ListTile(
+      leading: _DeckCardThumbnail(bytes: card.thumbnailBytes),
       title: Text(card.label.isEmpty ? '(Untitled)' : card.label),
       subtitle: Text(
         card.ocrText,
@@ -366,6 +373,44 @@ class _DeckCardTile extends StatelessWidget {
 
     if (!shouldDelete) return;
     await deckStore.deleteCard(deckId, card.id);
+  }
+}
+
+class _DeckCardThumbnail extends StatelessWidget {
+  const _DeckCardThumbnail({this.bytes});
+
+  final Uint8List? bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final placeholder = Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.image_outlined,
+        color: theme.colorScheme.onSurfaceVariant,
+        size: 20,
+      ),
+    );
+
+    if (bytes == null || bytes!.isEmpty) return placeholder;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.memory(
+        bytes!,
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => placeholder,
+      ),
+    );
   }
 }
 

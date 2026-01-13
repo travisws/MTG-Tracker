@@ -5,6 +5,9 @@ import '../../app/routes.dart';
 import '../../decks/deck_library_scope.dart';
 import '../../decks/deck_library_store.dart';
 import '../../models/deck.dart';
+import '../../mtg/buckets.dart';
+import '../../session/session_scope.dart';
+import '../../session/session_store.dart';
 import 'deck_detail_screen.dart';
 
 class DecksScreen extends StatelessWidget {
@@ -13,6 +16,7 @@ class DecksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deckStore = DeckLibraryScope.of(context);
+    final sessionStore = SessionScope.of(context);
 
     return Scaffold(
       drawer: const AppDrawer(currentRoute: AppRoutes.decks),
@@ -55,7 +59,15 @@ class DecksScreen extends StatelessWidget {
             separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final deck = deckStore.decks[index];
-              return _DeckTile(deck: deck);
+              return _DeckTile(
+                deck: deck,
+                isActive: sessionStore.activeDeckId == deck.id,
+                onLongPress: () => _useDeckForNewGame(
+                  context,
+                  sessionStore: sessionStore,
+                  deck: deck,
+                ),
+              );
             },
           );
         },
@@ -134,20 +146,85 @@ class DecksScreen extends StatelessWidget {
       ..clearSnackBars()
       ..showSnackBar(const SnackBar(content: Text('Deleted all decks')));
   }
+
+  Future<void> _useDeckForNewGame(
+    BuildContext context, {
+    required SessionStore sessionStore,
+    required Deck deck,
+  }) async {
+    final hasItems = MtgBuckets.ordered.any(
+      (bucket) => sessionStore.itemCountForBucket(bucket.id) > 0,
+    );
+
+    if (hasItems) {
+      final shouldReset =
+          await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Start a new game?'),
+              content: const Text(
+                'This clears the current session and loads this deck for quick adds.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Start'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+
+      if (!shouldReset) return;
+      await sessionStore.reset();
+    }
+
+    sessionStore.setActiveDeck(deck.id);
+
+    if (!context.mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.timeline,
+      (route) => false,
+    );
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Loaded "${deck.name}". Long-press a step to add cards.',
+          ),
+        ),
+      );
+  }
 }
 
 class _DeckTile extends StatelessWidget {
-  const _DeckTile({required this.deck});
+  const _DeckTile({
+    required this.deck,
+    required this.isActive,
+    this.onLongPress,
+  });
 
   final Deck deck;
+  final bool isActive;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final deckStore = DeckLibraryScope.of(context);
 
     return ListTile(
+      leading: isActive ? const Icon(Icons.check_circle) : null,
       title: Text(deck.name),
-      subtitle: Text('${deck.cards.length} saved cards'),
+      subtitle: Text(
+        isActive
+            ? '${deck.cards.length} saved cards • In use'
+            : '${deck.cards.length} saved cards',
+      ),
       trailing: PopupMenuButton<_DeckAction>(
         tooltip: 'Deck actions',
         onSelected: (action) => _handleAction(context, deckStore, action),
@@ -158,6 +235,7 @@ class _DeckTile extends StatelessWidget {
           ];
         },
       ),
+      onLongPress: onLongPress,
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute<void>(

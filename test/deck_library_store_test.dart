@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mtg_list/decks/deck_library_store.dart';
@@ -20,12 +21,15 @@ void main() {
     await store.createDeck('My Deck');
     final deckId = store.decks.single.id;
 
+    final thumbnailBytes = Uint8List.fromList([1, 2, 3, 4]);
+
     await store.addCardToDeck(
       deckId,
       label: 'Rhystic Study',
       ocrText:
           'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.',
       defaultBucketId: 'beginning.upkeep',
+      thumbnailBytes: thumbnailBytes,
     );
 
     final reloaded = DeckLibraryStore(storage: storage, now: () => now);
@@ -39,5 +43,36 @@ void main() {
       reloaded.decks.single.cards.single.defaultBucketId,
       'beginning.upkeep',
     );
+    expect(
+      reloaded.decks.single.cards.single.thumbnailBytes,
+      equals(thumbnailBytes),
+    );
+  });
+
+  test('addCardsToDeck appends multiple cards', () async {
+    final dir = await Directory.systemTemp.createTemp('mtg_list_decks_multi_');
+    addTearDown(() => dir.delete(recursive: true));
+
+    final storage = FileDeckLibraryStorage(
+      file: File('${dir.path}/decks.json'),
+    );
+    final now = DateTime(2026, 1, 1, 12, 0);
+
+    final store = DeckLibraryStore(storage: storage, now: () => now);
+    await store.load();
+    await store.createDeck('Multi');
+    final deckId = store.decks.single.id;
+
+    await store.addCardsToDeck(
+      deckId,
+      const [
+        DeckCardInput(label: 'A', ocrText: 'Text A'),
+        DeckCardInput(label: 'B', ocrText: 'Text B'),
+      ],
+    );
+
+    expect(store.decks.single.cards, hasLength(2));
+    expect(store.decks.single.cards.first.label, 'A');
+    expect(store.decks.single.cards.last.label, 'B');
   });
 }

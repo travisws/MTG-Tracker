@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -80,24 +81,37 @@ class DeckLibraryStore extends ChangeNotifier {
     required String ocrText,
     String? note,
     String? defaultBucketId,
+    Uint8List? thumbnailBytes,
   }) async {
+    await addCardsToDeck(
+      deckId,
+      [
+        DeckCardInput(
+          label: label,
+          ocrText: ocrText,
+          note: note,
+          defaultBucketId: defaultBucketId,
+          thumbnailBytes: thumbnailBytes,
+        ),
+      ],
+    );
+  }
+
+  Future<void> addCardsToDeck(
+    String deckId,
+    List<DeckCardInput> cards,
+  ) async {
+    if (cards.isEmpty) return;
     final deckIndex = _decks.indexWhere((deck) => deck.id == deckId);
     if (deckIndex == -1) return;
 
     final now = _now();
-    final card = DeckCard(
-      id: _newId(),
-      label: label.trim(),
-      ocrText: ocrText.trim(),
-      note: note?.trim().isEmpty ?? true ? null : note!.trim(),
-      defaultBucketId: defaultBucketId,
-      createdAt: now,
-      updatedAt: now,
-    );
-
     final deck = _decks[deckIndex];
+    final newCards = cards
+        .map((input) => _buildCard(input, now))
+        .toList();
     _decks[deckIndex] = deck.copyWith(
-      cards: [...deck.cards, card],
+      cards: [...deck.cards, ...newCards],
       updatedAt: now,
     );
     await _persist();
@@ -161,4 +175,37 @@ class DeckLibraryStore extends ChangeNotifier {
     _sequence = (_sequence + 1) % 1000000;
     return '${_now().microsecondsSinceEpoch}-$_sequence';
   }
+
+  DeckCard _buildCard(DeckCardInput input, DateTime now) {
+    final thumbnailBytes = input.thumbnailBytes == null
+        ? null
+        : Uint8List.fromList(input.thumbnailBytes!);
+    return DeckCard(
+      id: _newId(),
+      label: input.label.trim(),
+      ocrText: input.ocrText.trim(),
+      note: input.note?.trim().isEmpty ?? true ? null : input.note!.trim(),
+      defaultBucketId: input.defaultBucketId,
+      thumbnailBytes: thumbnailBytes,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+}
+
+@immutable
+class DeckCardInput {
+  const DeckCardInput({
+    required this.label,
+    required this.ocrText,
+    this.note,
+    this.defaultBucketId,
+    this.thumbnailBytes,
+  });
+
+  final String label;
+  final String ocrText;
+  final String? note;
+  final String? defaultBucketId;
+  final Uint8List? thumbnailBytes;
 }

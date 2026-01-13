@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -49,6 +50,7 @@ class SessionStore extends ChangeNotifier {
   final Map<String, List<TimelineItem>> _itemsByBucketId = {};
   final Map<String, bool> _expandedByBucketId = {};
   final Map<String, bool> _visibleByBucketId = {};
+  String? _activeDeckId;
 
   final Map<String, int> _restoreIndexByItemId = {};
 
@@ -81,6 +83,14 @@ class SessionStore extends ChangeNotifier {
     return _visibleByBucketId[bucketId] ?? true;
   }
 
+  String? get activeDeckId => _activeDeckId;
+
+  void setActiveDeck(String? deckId) {
+    if (_activeDeckId == deckId) return;
+    _activeDeckId = deckId;
+    notifyListeners();
+  }
+
   void setBucketVisible(String bucketId, bool isVisible) {
     _visibleByBucketId[bucketId] = isVisible;
     notifyListeners();
@@ -108,6 +118,13 @@ class SessionStore extends ChangeNotifier {
     _expandedByBucketId[bucketId] = true;
     _visibleByBucketId[bucketId] = true;
     notifyListeners();
+  }
+
+  Future<String?> cacheThumbnailBytes(List<int>? bytes) async {
+    if (bytes == null || bytes.isEmpty) return null;
+    if (_thumbnailCache == null) return null;
+    final data = Uint8List.fromList(bytes);
+    return _thumbnailCache!.writeBytes(data);
   }
 
   void moveItem(String itemId, String toBucketId, {int? toIndex}) {
@@ -194,6 +211,7 @@ class SessionStore extends ChangeNotifier {
           .contains(bucket.id);
     }
     _restoreIndexByItemId.clear();
+    _activeDeckId = null;
     notifyListeners();
     await _thumbnailCache?.purge();
   }

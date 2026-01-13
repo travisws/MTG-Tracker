@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../models/timeline_item.dart';
@@ -29,19 +31,14 @@ class TimelineItemRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.image_outlined,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 56,
+                height: 56,
+                child: _buildThumbnail(theme),
               ),
+            ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -73,6 +70,28 @@ class TimelineItemRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildThumbnail(ThemeData theme) {
+    final placeholder = Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.image_outlined,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+
+    final path = item.thumbnailPath;
+    if (path == null || path.isEmpty) {
+      return placeholder;
+    }
+
+    return Image.file(
+      File(path),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => placeholder,
     );
   }
 }

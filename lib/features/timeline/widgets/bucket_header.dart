@@ -9,6 +9,7 @@ class BucketHeader extends StatelessWidget {
     required this.count,
     required this.isExpanded,
     required this.onToggleExpanded,
+    this.onLongPress,
     super.key,
   });
 
@@ -17,6 +18,7 @@ class BucketHeader extends StatelessWidget {
   final int count;
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -24,35 +26,38 @@ class BucketHeader extends StatelessWidget {
 
     return Material(
       color: theme.colorScheme.surface,
-      child: Container(
-        height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: theme.dividerColor)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+      child: InkWell(
+        onLongPress: onLongPress,
+        child: Container(
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: theme.dividerColor)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            if (count > 0) _CountBadge(count: count),
-            IconButton(
-              key: Key('bucket-toggle-$bucketId'),
-              tooltip: isExpanded ? 'Collapse $label' : 'Expand $label',
-              onPressed: onToggleExpanded,
-              icon: AnimatedRotation(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                turns: isExpanded ? 0.5 : 0,
-                child: const Icon(Icons.expand_more),
+              if (count > 0) _CountBadge(count: count),
+              IconButton(
+                key: Key('bucket-toggle-$bucketId'),
+                tooltip: isExpanded ? 'Collapse $label' : 'Expand $label',
+                onPressed: onToggleExpanded,
+                icon: AnimatedRotation(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  turns: isExpanded ? 0.5 : 0,
+                  child: const Icon(Icons.expand_more),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -83,4 +88,3 @@ class _CountBadge extends StatelessWidget {
     );
   }
 }
-

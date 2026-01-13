@@ -1,13 +1,22 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_drawer.dart';
 import '../../app/routes.dart';
 import '../../decks/deck_library_scope.dart';
+import '../../decks/deck_library_store.dart';
 import '../../mtg/buckets.dart';
+import '../../models/timeline_item.dart';
+import '../../models/deck.dart';
 import '../../session/session_scope.dart';
 import '../../session/session_store.dart';
+import '../../session/session_item_id.dart';
 import 'widgets/bucket_header.dart';
 import 'widgets/timeline_item_row.dart';
+
+const int _maxThumbnailBytes = 256 * 1024;
 
 class TimelineScreen extends StatelessWidget {
   const TimelineScreen({super.key});
@@ -21,6 +30,11 @@ class TimelineScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Current Turn'),
         actions: [
+          IconButton(
+            onPressed: () => _saveSessionToDeck(context),
+            tooltip: 'Save session to deck',
+            icon: const Icon(Icons.library_add),
+          ),
           IconButton(
             onPressed: () => _showVisibleStepsSheet(context),
             tooltip: 'Show/Hide Steps',
@@ -49,6 +63,13 @@ class TimelineScreen extends StatelessWidget {
                   count: store.itemCountForBucket(bucket.id),
                   isExpanded: store.isBucketExpanded(bucket.id),
                   onToggleExpanded: () => store.toggleBucketExpanded(bucket.id),
+                  onLongPress:
+                      bucket.id == MtgBuckets.trash.id
+                          ? null
+                          : () => _addFromActiveDeck(
+                            context,
+                            bucketId: bucket.id,
+                          ),
                 ),
               ),
               if (store.isBucketExpanded(bucket.id))
@@ -247,79 +268,14 @@ class _BucketBodySliver extends StatelessWidget {
     if (item == null) return;
 
     final deckStore = DeckLibraryScope.of(context);
-    if (!deckStore.isLoaded) {
-      await deckStore.load();
-    }
-    if (!context.mounted) return;
-
-    const createDeckSentinel = '__create_deck__';
-
-    Future<String?> createDeckAndReturnId() async {
-      final controller = TextEditingController();
-      try {
-        final name =
-            await showDialog<String>(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: const Text('New deck'),
-                  content: TextField(
-                    controller: controller,
-                    autofocus: true,
-                    textInputAction: TextInputAction.done,
-                    decoration: const InputDecoration(labelText: 'Deck name'),
-                    onSubmitted: (value) => Navigator.of(context).pop(value),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () =>
-                          Navigator.of(context).pop(controller.text),
-                      child: const Text('Create'),
-                    ),
-                  ],
-                );
-              },
-            ) ??
-            '';
-
-        if (name.trim().isEmpty) return null;
-        final before = deckStore.decks.length;
-        await deckStore.createDeck(name);
-        if (deckStore.decks.length <= before) return null;
-        return deckStore.decks.last.id;
-      } finally {
-        controller.dispose();
-      }
-    }
-
-    String? pickedDeckId;
-    if (deckStore.decks.isEmpty) {
-      if (!context.mounted) return;
-      pickedDeckId = await createDeckAndReturnId();
-    } else {
-      if (!context.mounted) return;
-      pickedDeckId = await showModalBottomSheet<String>(
-        context: context,
-        showDragHandle: true,
-        builder: (context) =>
-            _DeckPickerSheet(createDeckSentinel: createDeckSentinel),
-      );
-    }
-
-    if (pickedDeckId == null) return;
-
-    final deckId = pickedDeckId == createDeckSentinel
-        ? await createDeckAndReturnId()
-        : pickedDeckId;
+    final deckId = await _pickDeckId(context, deckStore);
     if (deckId == null) return;
 
     final defaultBucketId = item.bucketId == MtgBuckets.trash.id
         ? item.previousBucketId
         : item.bucketId;
+
+    final thumbnailBytes = await _loadThumbnailBytes(item.thumbnailPath);
 
     await deckStore.addCardToDeck(
       deckId,
@@ -327,6 +283,7 @@ class _BucketBodySliver extends StatelessWidget {
       ocrText: item.ocrText,
       note: item.note,
       defaultBucketId: defaultBucketId,
+      thumbnailBytes: thumbnailBytes,
     );
 
     if (!context.mounted) return;
@@ -334,6 +291,208 @@ class _BucketBodySliver extends StatelessWidget {
       ..clearSnackBars()
       ..showSnackBar(const SnackBar(content: Text('Saved to deck')));
   }
+}
+
+Future<void> _saveSessionToDeck(BuildContext context) async {
+  final store = SessionScope.of(context);
+  final deckStore = DeckLibraryScope.of(context);
+  final items = <TimelineItem>[];
+  for (final bucket in MtgBuckets.ordered) {
+    if (bucket.id == MtgBuckets.trash.id) continue;
+    items.addAll(store.itemsForBucket(bucket.id));
+  }
+
+  if (items.isEmpty) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(const SnackBar(content: Text('No cards to save yet')));
+    return;
+  }
+
+  final deckId = await _pickDeckId(context, deckStore);
+  if (deckId == null) return;
+
+  final inputs = <DeckCardInput>[];
+  for (final item in items) {
+    final thumbnailBytes = await _loadThumbnailBytes(item.thumbnailPath);
+    inputs.add(
+      DeckCardInput(
+        label: item.label,
+        ocrText: item.ocrText,
+        note: item.note,
+        defaultBucketId: item.bucketId,
+        thumbnailBytes: thumbnailBytes,
+      ),
+    );
+  }
+  await deckStore.addCardsToDeck(deckId, inputs);
+
+  if (!context.mounted) return;
+  final deckName = deckStore.deckById(deckId)?.name ?? 'deck';
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(
+        content: Text('Saved ${items.length} cards to $deckName'),
+      ),
+    );
+}
+
+Future<String?> _pickDeckId(
+  BuildContext context,
+  DeckLibraryStore deckStore,
+) async {
+  if (!deckStore.isLoaded) {
+    await deckStore.load();
+  }
+  if (!context.mounted) return null;
+
+  const createDeckSentinel = '__create_deck__';
+
+  Future<String?> createDeckAndReturnId() async {
+    final controller = TextEditingController();
+    try {
+      final name =
+          await showDialog<String>(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: const Text('New deck'),
+                content: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(labelText: 'Deck name'),
+                  onSubmitted: (value) => Navigator.of(context).pop(value),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(controller.text),
+                    child: const Text('Create'),
+                  ),
+                ],
+              );
+            },
+          ) ??
+          '';
+
+      if (name.trim().isEmpty) return null;
+      final before = deckStore.decks.length;
+      await deckStore.createDeck(name);
+      if (deckStore.decks.length <= before) return null;
+      return deckStore.decks.last.id;
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  String? pickedDeckId;
+  if (deckStore.decks.isEmpty) {
+    pickedDeckId = await createDeckAndReturnId();
+  } else {
+    pickedDeckId = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) =>
+          _DeckPickerSheet(createDeckSentinel: createDeckSentinel),
+    );
+  }
+
+  if (pickedDeckId == null) return null;
+  return pickedDeckId == createDeckSentinel
+      ? await createDeckAndReturnId()
+      : pickedDeckId;
+}
+
+Future<void> _addFromActiveDeck(
+  BuildContext context, {
+  required String bucketId,
+}) async {
+  final store = SessionScope.of(context);
+  final deckStore = DeckLibraryScope.of(context);
+  final activeDeckId = store.activeDeckId;
+
+  if (activeDeckId == null) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('No active deck. Long-press a deck to use it.'),
+        ),
+      );
+    return;
+  }
+
+  if (!deckStore.isLoaded) {
+    await deckStore.load();
+  }
+  if (!context.mounted) return;
+
+  final deck = deckStore.deckById(activeDeckId);
+  if (deck == null) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(const SnackBar(content: Text('Active deck not found')));
+    return;
+  }
+
+  if (deck.cards.isEmpty) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(content: Text('"${deck.name}" has no saved cards')),
+      );
+    return;
+  }
+
+  final cardId = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => _DeckCardPickerSheet(deck: deck),
+  );
+  if (cardId == null) return;
+
+  DeckCard? pickedCard;
+  for (final card in deck.cards) {
+    if (card.id == cardId) {
+      pickedCard = card;
+      break;
+    }
+  }
+  if (pickedCard == null) return;
+
+  final thumbnailPath = await store.cacheThumbnailBytes(
+    pickedCard.thumbnailBytes,
+  );
+
+  store.addItem(
+    TimelineItem(
+      id: newSessionItemId(),
+      bucketId: bucketId,
+      label: pickedCard.label,
+      ocrText: pickedCard.ocrText,
+      note: pickedCard.note,
+      thumbnailPath: thumbnailPath,
+    ),
+  );
+
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(const SnackBar(content: Text('Added from deck')));
+}
+
+Future<Uint8List?> _loadThumbnailBytes(String? path) async {
+  if (path == null || path.isEmpty) return null;
+  final file = File(path);
+  if (!await file.exists()) return null;
+  final length = await file.length();
+  if (length > _maxThumbnailBytes) return null;
+  return file.readAsBytes();
 }
 
 class _VisibleStepsSheet extends StatelessWidget {
@@ -456,6 +615,76 @@ class _DeckPickerSheet extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _DeckCardPickerSheet extends StatelessWidget {
+  const _DeckCardPickerSheet({required this.deck});
+
+  final Deck deck;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          ListTile(
+            title: Text(deck.name),
+            subtitle: Text('${deck.cards.length} saved cards'),
+          ),
+          for (final card in deck.cards)
+            ListTile(
+              leading: _DeckCardThumbnail(bytes: card.thumbnailBytes),
+              title: Text(card.label.isEmpty ? 'Untitled card' : card.label),
+              subtitle: Text(
+                card.ocrText,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () => Navigator.of(context).pop(card.id),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeckCardThumbnail extends StatelessWidget {
+  const _DeckCardThumbnail({this.bytes});
+
+  final Uint8List? bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final placeholder = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.image_outlined,
+        color: theme.colorScheme.onSurfaceVariant,
+        size: 18,
+      ),
+    );
+
+    if (bytes == null || bytes!.isEmpty) return placeholder;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.memory(
+        bytes!,
+        width: 44,
+        height: 44,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => placeholder,
       ),
     );
   }

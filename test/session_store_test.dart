@@ -58,4 +58,13 @@ void main() {
     expect(store.itemCountForBucket(MtgBuckets.upkeep.id), 0);
     expect(await tempDir.exists(), isFalse);
   });
+
+  test('reset clears active deck', () async {
+    final store = SessionStore(initialItems: const []);
+    store.setActiveDeck('deck-1');
+
+    await store.reset();
+
+    expect(store.activeDeckId, isNull);
+  });
 }

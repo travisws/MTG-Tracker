@@ -12,7 +12,7 @@ A “timeline item” is a reminder entry with:
 - Optional note/label
 
 Session-only timeline: everything on the current timeline is temporary and wipes on Reset.
-Deck library (optional): saved decks/cards are reusable across sessions and have their own delete controls; they store only text/metadata (no original photos).
+Deck library (optional): saved decks/cards are reusable across sessions and have their own delete controls; they store text/metadata and small thumbnail bytes (no original photos).
 
 ## MVP user stories
 1) As a player, I can take a photo of a card and crop the rules text so the app can OCR it.

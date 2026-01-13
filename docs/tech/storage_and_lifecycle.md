@@ -12,8 +12,9 @@ Everything in the session must be wiped on Reset.
 If using decks, the app may persist:
 - Deck + saved-card metadata (labels/notes)
 - OCR text (string)
+- Small thumbnail bytes for saved cards (optional, user-deletable with the deck)
 
-Do not persist original photos or intermediate crops for decks. (Thumbnails may be added later only if constraints are updated explicitly.)
+Do not persist original photos or intermediate crops for decks.
 
 ## Recommended approach
 - Metadata: in-memory only (Riverpod/Bloc/etc.)

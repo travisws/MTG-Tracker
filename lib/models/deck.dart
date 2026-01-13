@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 
 @immutable
@@ -81,6 +84,7 @@ class DeckCard {
     required this.updatedAt,
     this.note,
     this.defaultBucketId,
+    this.thumbnailBytes,
   });
 
   final String id;
@@ -88,6 +92,7 @@ class DeckCard {
   final String ocrText;
   final String? note;
   final String? defaultBucketId;
+  final Uint8List? thumbnailBytes;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -97,6 +102,7 @@ class DeckCard {
     String? ocrText,
     Object? note = _unset,
     Object? defaultBucketId = _unset,
+    Object? thumbnailBytes = _unset,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -108,6 +114,9 @@ class DeckCard {
       defaultBucketId: identical(defaultBucketId, _unset)
           ? this.defaultBucketId
           : defaultBucketId as String?,
+      thumbnailBytes: identical(thumbnailBytes, _unset)
+          ? this.thumbnailBytes
+          : thumbnailBytes as Uint8List?,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -120,18 +129,31 @@ class DeckCard {
       'ocrText': ocrText,
       'note': note,
       'defaultBucketId': defaultBucketId,
+      'thumbnailBase64':
+          thumbnailBytes == null ? null : base64Encode(thumbnailBytes!),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
   static DeckCard fromJson(Map<String, Object?> json) {
+    final thumbnailValue = json['thumbnailBase64'];
+    Uint8List? thumbnailBytes;
+    if (thumbnailValue is String && thumbnailValue.isNotEmpty) {
+      try {
+        thumbnailBytes = base64Decode(thumbnailValue);
+      } catch (_) {
+        thumbnailBytes = null;
+      }
+    }
+
     return DeckCard(
       id: (json['id'] as String?) ?? '',
       label: (json['label'] as String?) ?? '',
       ocrText: (json['ocrText'] as String?) ?? '',
       note: json['note'] as String?,
       defaultBucketId: json['defaultBucketId'] as String?,
+      thumbnailBytes: thumbnailBytes,
       createdAt:
           _parseDateTime(json['createdAt']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
