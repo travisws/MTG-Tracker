@@ -29,8 +29,10 @@ class CaptureFlow {
     if (picked == null) return;
 
     final store = SessionScope.of(context);
-    final workingPath = await _copyToWorkingFile(picked.path) ?? picked.path;
-    final shouldDeleteWorking = workingPath != picked.path;
+    final originalPath = picked.path;
+    final workingPath = await _copyToWorkingFile(originalPath) ?? originalPath;
+    final shouldDeleteWorking = workingPath != originalPath;
+    final shouldDeleteOriginal = source == ImageSource.camera;
     String? textCropPath;
     String? artCropPath;
 
@@ -47,7 +49,11 @@ class CaptureFlow {
       }
       textCropPath = textCrop.path;
 
-      final ocrText = await _runOcr(textCropPath!);
+      final ocrInputPath = await _prepareOcrInput(textCropPath!);
+      final ocrText = await _runOcr(ocrInputPath);
+      if (ocrInputPath != textCropPath) {
+        await _safeDelete(ocrInputPath);
+      }
       await _safeDelete(textCropPath);
       textCropPath = null;
 
@@ -65,16 +71,21 @@ class CaptureFlow {
 
       final thumbnailBytes = await _generateThumbnailBytes(artCropPath);
       final thumbnailPath = await store.cacheThumbnailBytes(thumbnailBytes);
+      final editedOcrText = await _editOcrText(context, ocrText);
+      if (editedOcrText == null) {
+        _showSnack(context, 'Capture canceled');
+        return;
+      }
       final bucketId = await _pickBucket(context);
       if (bucketId == null) {
         _showSnack(context, 'Capture canceled');
         return;
       }
 
-      final resolvedOcrText =
-          ocrText == null || ocrText.trim().isEmpty
-              ? 'OCR failed'
-              : ocrText.trim();
+      final resolvedOcrText = _resolveOcrText(
+        originalText: ocrText,
+        editedText: editedOcrText,
+      );
       store.addItem(
         TimelineItem(
           id: newSessionItemId(),
@@ -85,17 +96,15 @@ class CaptureFlow {
         ),
       );
 
-      _showSnack(
-        context,
-        resolvedOcrText == 'OCR failed'
-            ? 'Added card (OCR failed)'
-            : 'Added card',
-      );
+      _showSnack(context, _buildOcrSnackMessage(resolvedOcrText));
     } catch (_) {
       _showSnack(context, 'Capture failed');
     } finally {
       if (shouldDeleteWorking) {
         await _safeDelete(workingPath);
+      }
+      if (shouldDeleteOriginal) {
+        await _safeDelete(originalPath);
       }
       await _safeDelete(textCropPath);
       await _safeDelete(artCropPath);
@@ -162,6 +171,78 @@ class CaptureFlow {
     } finally {
       await recognizer.close();
     }
+  }
+
+  static Future<String> _prepareOcrInput(String sourcePath) async {
+    try {
+      final bytes = await File(sourcePath).readAsBytes();
+      final processed = await compute(_preprocessOcrImage, bytes);
+      if (processed == null) return sourcePath;
+      final tempDir = await getTemporaryDirectory();
+      final filename = 'ocr_${DateTime.now().microsecondsSinceEpoch}.png';
+      final file = File('${tempDir.path}/$filename');
+      await file.writeAsBytes(processed, flush: true);
+      return file.path;
+    } catch (_) {
+      return sourcePath;
+    }
+  }
+
+  static Future<String?> _editOcrText(
+    BuildContext context,
+    String? ocrText,
+  ) async {
+    final controller = TextEditingController(text: ocrText ?? '');
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Review rules text'),
+            content: TextField(
+              controller: controller,
+              minLines: 4,
+              maxLines: 10,
+              decoration: const InputDecoration(
+                labelText: 'Rules text',
+                hintText: 'Edit before saving to a step',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text),
+                child: const Text('Save text'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  static String _resolveOcrText({
+    required String? originalText,
+    required String editedText,
+  }) {
+    final trimmed = editedText.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    if (originalText == null || originalText.trim().isEmpty) {
+      return 'OCR failed';
+    }
+    return 'No rules text';
+  }
+
+  static String _buildOcrSnackMessage(String text) {
+    if (text == 'OCR failed') return 'Added card (OCR failed)';
+    if (text == 'No rules text') return 'Added card (no rules text)';
+    return 'Added card';
   }
 
   static Future<CroppedFile?> _cropImage({
@@ -248,4 +329,14 @@ Uint8List? _encodeThumbnail(Uint8List bytes) {
   );
   final jpg = img.encodeJpg(square, quality: CaptureFlow._thumbnailQuality);
   return Uint8List.fromList(jpg);
+}
+
+Uint8List? _preprocessOcrImage(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return null;
+
+  final grayscale = img.grayscale(decoded);
+  final normalized = img.normalize(grayscale, min: 0, max: 255);
+  final png = img.encodePng(normalized);
+  return Uint8List.fromList(png);
 }

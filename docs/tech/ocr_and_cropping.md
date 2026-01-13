@@ -11,6 +11,8 @@ Suggested package:
 ## Current implementation
 - OCR runs immediately after the text crop, before the art crop.
 - Text crop is deleted right after OCR completes.
+- OCR input is lightly preprocessed (grayscale + normalize) before recognition.
+- User reviews/edits the OCR text before choosing a step.
 
 ## Cropping requirements
 Two regions from one capture:
