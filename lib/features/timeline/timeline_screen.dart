@@ -17,8 +17,6 @@ import '../../session/session_item_id.dart';
 import 'widgets/bucket_header.dart';
 import 'widgets/timeline_item_row.dart';
 
-const int _maxThumbnailBytes = 256 * 1024;
-
 class TimelineScreen extends StatelessWidget {
   const TimelineScreen({super.key});
 
@@ -500,7 +498,8 @@ Future<void> _addFromActiveDeck(
   final cardId = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
-    builder: (context) => _DeckCardPickerSheet(deck: deck),
+    builder: (context) =>
+        _DeckCardPickerSheet(deck: deck, deckStore: deckStore),
   );
   if (cardId == null) return;
 
@@ -513,9 +512,11 @@ Future<void> _addFromActiveDeck(
   }
   if (pickedCard == null) return;
 
-  final thumbnailPath = await store.cacheThumbnailBytes(
-    pickedCard.thumbnailBytes,
+  final deckThumbPath = deckStore.thumbnailPathFor(
+    deckId: deck.id,
+    card: pickedCard,
   );
+  final thumbnailPath = await store.cacheThumbnailFromFile(deckThumbPath);
 
   store.addItem(
     TimelineItem(
@@ -543,7 +544,7 @@ Future<_ThumbnailLoadResult> _loadThumbnail(String? path) async {
     return const _ThumbnailLoadResult(wasMissing: true);
   }
   final length = await file.length();
-  if (length > _maxThumbnailBytes) {
+  if (length > DeckLibraryStore.maxThumbnailBytes) {
     return const _ThumbnailLoadResult(wasTooLarge: true);
   }
   try {
@@ -715,9 +716,10 @@ class _DeckPickerSheet extends StatelessWidget {
 }
 
 class _DeckCardPickerSheet extends StatelessWidget {
-  const _DeckCardPickerSheet({required this.deck});
+  const _DeckCardPickerSheet({required this.deck, required this.deckStore});
 
   final Deck deck;
+  final DeckLibraryStore deckStore;
 
   @override
   Widget build(BuildContext context) {
@@ -731,7 +733,12 @@ class _DeckCardPickerSheet extends StatelessWidget {
           ),
           for (final card in deck.cards)
             ListTile(
-              leading: _DeckCardThumbnail(bytes: card.thumbnailBytes),
+              leading: _DeckCardThumbnail(
+                path: deckStore.thumbnailPathFor(
+                  deckId: deck.id,
+                  card: card,
+                ),
+              ),
               title: Text(card.label.isEmpty ? 'Untitled card' : card.label),
               subtitle: Text(
                 card.ocrText,
@@ -747,9 +754,9 @@ class _DeckCardPickerSheet extends StatelessWidget {
 }
 
 class _DeckCardThumbnail extends StatelessWidget {
-  const _DeckCardThumbnail({this.bytes});
+  const _DeckCardThumbnail({this.path});
 
-  final Uint8List? bytes;
+  final String? path;
 
   @override
   Widget build(BuildContext context) {
@@ -769,12 +776,12 @@ class _DeckCardThumbnail extends StatelessWidget {
       ),
     );
 
-    if (bytes == null || bytes!.isEmpty) return placeholder;
+    if (path == null || path!.isEmpty) return placeholder;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Image.memory(
-        bytes!,
+      child: Image.file(
+        File(path!),
         width: 44,
         height: 44,
         fit: BoxFit.cover,

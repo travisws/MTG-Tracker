@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mtg_list/decks/deck_library_store.dart';
+import 'package:mtg_list/decks/deck_thumbnail_store.dart';
 import 'package:mtg_list/decks/file_deck_library_storage.dart';
 
 void main() {
@@ -13,9 +14,16 @@ void main() {
     final storage = FileDeckLibraryStorage(
       file: File('${dir.path}/decks.json'),
     );
+    final thumbnailStore = DeckThumbnailStore(
+      rootDirectory: Directory('${dir.path}/thumbs'),
+    );
     final now = DateTime(2026, 1, 1, 12, 0);
 
-    final store = DeckLibraryStore(storage: storage, now: () => now);
+    final store = DeckLibraryStore(
+      storage: storage,
+      thumbnailStore: thumbnailStore,
+      now: () => now,
+    );
     await store.load();
 
     await store.createDeck('My Deck');
@@ -32,7 +40,11 @@ void main() {
       thumbnailBytes: thumbnailBytes,
     );
 
-    final reloaded = DeckLibraryStore(storage: storage, now: () => now);
+    final reloaded = DeckLibraryStore(
+      storage: storage,
+      thumbnailStore: thumbnailStore,
+      now: () => now,
+    );
     await reloaded.load();
 
     expect(reloaded.decks, hasLength(1));
@@ -43,10 +55,15 @@ void main() {
       reloaded.decks.single.cards.single.defaultBucketId,
       'beginning.upkeep',
     );
-    expect(
-      reloaded.decks.single.cards.single.thumbnailBytes,
-      equals(thumbnailBytes),
+    final reloadedCard = reloaded.decks.single.cards.single;
+    expect(reloadedCard.hasThumbnail, isTrue);
+    final thumbnailPath = reloaded.thumbnailPathFor(
+      deckId: reloaded.decks.single.id,
+      card: reloadedCard,
     );
+    expect(thumbnailPath, isNotNull);
+    final bytes = await File(thumbnailPath!).readAsBytes();
+    expect(bytes, equals(thumbnailBytes));
   });
 
   test('addCardsToDeck appends multiple cards', () async {

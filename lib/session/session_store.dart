@@ -127,6 +127,12 @@ class SessionStore extends ChangeNotifier {
     return _thumbnailCache!.writeBytes(data);
   }
 
+  Future<String?> cacheThumbnailFromFile(String? path) async {
+    if (path == null || path.isEmpty) return null;
+    if (_thumbnailCache == null) return null;
+    return _thumbnailCache!.copyFromFile(path);
+  }
+
   void moveItem(String itemId, String toBucketId, {int? toIndex}) {
     if (!_itemsByBucketId.containsKey(toBucketId)) return;
 

@@ -19,7 +19,7 @@ class FileDeckLibraryStorage implements DeckLibraryStorage {
       if (decoded is! Map) return const [];
 
       final version = decoded['version'];
-      if (version != 1) return const [];
+      if (version != 2) return const [];
 
       final decksRaw = decoded['decks'];
       if (decksRaw is! List) return const [];
@@ -46,7 +46,7 @@ class FileDeckLibraryStorage implements DeckLibraryStorage {
     }
 
     final payload = <String, Object?>{
-      'version': 1,
+      'version': 2,
       'decks': decks.map((deck) => deck.toJson()).toList(),
     };
     await _file.writeAsString(jsonEncode(payload));

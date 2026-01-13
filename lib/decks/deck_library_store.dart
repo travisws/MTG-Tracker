@@ -5,15 +5,23 @@ import 'package:flutter/foundation.dart';
 
 import '../models/deck.dart';
 import 'deck_library_storage.dart';
+import 'deck_thumbnail_store.dart';
 
 class DeckLibraryStore extends ChangeNotifier {
-  DeckLibraryStore({DeckLibraryStorage? storage, DateTime Function()? now})
-    : _storage = storage,
-      _now = now ?? DateTime.now {
+  DeckLibraryStore({
+    DeckLibraryStorage? storage,
+    DeckThumbnailStore? thumbnailStore,
+    DateTime Function()? now,
+  }) : _storage = storage,
+       _thumbnailStore = thumbnailStore,
+       _now = now ?? DateTime.now {
     _isLoaded = storage == null;
   }
 
+  static const int maxThumbnailBytes = 256 * 1024;
+
   final DeckLibraryStorage? _storage;
+  final DeckThumbnailStore? _thumbnailStore;
   final DateTime Function() _now;
 
   final List<Deck> _decks = [];
@@ -27,6 +35,18 @@ class DeckLibraryStore extends ChangeNotifier {
     final index = _decks.indexWhere((deck) => deck.id == deckId);
     if (index == -1) return null;
     return _decks[index];
+  }
+
+  String? thumbnailPathFor({
+    required String deckId,
+    required DeckCard card,
+  }) {
+    if (!card.hasThumbnail) return null;
+    if (_thumbnailStore == null) return null;
+    return _thumbnailStore!.thumbnailPathFor(
+      deckId: deckId,
+      cardId: card.id,
+    );
   }
 
   Future<void> load() async {
@@ -71,6 +91,7 @@ class DeckLibraryStore extends ChangeNotifier {
 
   Future<void> deleteDeck(String deckId) async {
     _decks.removeWhere((deck) => deck.id == deckId);
+    await _thumbnailStore?.deleteDeck(deckId);
     await _persist();
     notifyListeners();
   }
@@ -107,9 +128,11 @@ class DeckLibraryStore extends ChangeNotifier {
 
     final now = _now();
     final deck = _decks[deckIndex];
-    final newCards = cards
-        .map((input) => _buildCard(input, now))
-        .toList();
+    final newCards = <DeckCard>[];
+    for (final input in cards) {
+      final card = await _buildCard(deckId, input, now);
+      newCards.add(card);
+    }
     _decks[deckIndex] = deck.copyWith(
       cards: [...deck.cards, ...newCards],
       updatedAt: now,
@@ -156,12 +179,14 @@ class DeckLibraryStore extends ChangeNotifier {
       cards: deck.cards.where((card) => card.id != cardId).toList(),
       updatedAt: _now(),
     );
+    await _thumbnailStore?.deleteCard(deckId: deckId, cardId: cardId);
     await _persist();
     notifyListeners();
   }
 
   Future<void> deleteAll() async {
     _decks.clear();
+    await _thumbnailStore?.deleteAll();
     await _persist();
     notifyListeners();
   }
@@ -176,20 +201,42 @@ class DeckLibraryStore extends ChangeNotifier {
     return '${_now().microsecondsSinceEpoch}-$_sequence';
   }
 
-  DeckCard _buildCard(DeckCardInput input, DateTime now) {
-    final thumbnailBytes = input.thumbnailBytes == null
-        ? null
-        : Uint8List.fromList(input.thumbnailBytes!);
+  Future<DeckCard> _buildCard(
+    String deckId,
+    DeckCardInput input,
+    DateTime now,
+  ) async {
+    final cardId = _newId();
+    final thumbnailBytes = _sanitizeThumbnailBytes(input.thumbnailBytes);
+    var hasThumbnail = false;
+    if (_thumbnailStore != null && thumbnailBytes != null) {
+      try {
+        await _thumbnailStore!.writeBytes(
+          deckId: deckId,
+          cardId: cardId,
+          bytes: thumbnailBytes,
+        );
+        hasThumbnail = true;
+      } catch (_) {
+        hasThumbnail = false;
+      }
+    }
     return DeckCard(
-      id: _newId(),
+      id: cardId,
       label: input.label.trim(),
       ocrText: input.ocrText.trim(),
       note: input.note?.trim().isEmpty ?? true ? null : input.note!.trim(),
       defaultBucketId: input.defaultBucketId,
-      thumbnailBytes: thumbnailBytes,
+      hasThumbnail: hasThumbnail,
       createdAt: now,
       updatedAt: now,
     );
+  }
+
+  Uint8List? _sanitizeThumbnailBytes(Uint8List? bytes) {
+    if (bytes == null || bytes.isEmpty) return null;
+    if (bytes.lengthInBytes > maxThumbnailBytes) return null;
+    return Uint8List.fromList(bytes);
   }
 }
 

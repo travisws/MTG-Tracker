@@ -24,4 +24,22 @@ class ThumbnailCache {
     await file.writeAsBytes(bytes, flush: true);
     return file.path;
   }
+
+  Future<String?> copyFromFile(String path) async {
+    final source = File(path);
+    if (!await source.exists()) return null;
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+    _sequence = (_sequence + 1) % 1000000;
+    final filename =
+        'thumb_${DateTime.now().microsecondsSinceEpoch}_$_sequence.jpg';
+    final destination = File('${directory.path}/$filename');
+    try {
+      await source.copy(destination.path);
+      return destination.path;
+    } catch (_) {
+      return null;
+    }
+  }
 }
