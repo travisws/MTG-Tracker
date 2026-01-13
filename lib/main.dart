@@ -7,11 +7,14 @@ import 'app/mtg_resolution_app.dart';
 import 'decks/deck_library_store.dart';
 import 'decks/deck_thumbnail_store.dart';
 import 'decks/file_deck_library_storage.dart';
+import 'session/session_store.dart';
+import 'thumbnail/thumbnail_cache.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final deckStore = await _loadDeckStore();
-  runApp(MtgResolutionApp(deckStore: deckStore));
+  final sessionStore = await _loadSessionStore();
+  runApp(MtgResolutionApp(store: sessionStore, deckStore: deckStore));
 }
 
 Future<DeckLibraryStore> _loadDeckStore() async {
@@ -30,5 +33,18 @@ Future<DeckLibraryStore> _loadDeckStore() async {
     return store;
   } catch (_) {
     return DeckLibraryStore();
+  }
+}
+
+Future<SessionStore> _loadSessionStore() async {
+  try {
+    final dir = await getTemporaryDirectory();
+    final cache = ThumbnailCache(
+      directory: Directory('${dir.path}/mtg_resolution_timeline_thumbnails'),
+    );
+    await cache.purge();
+    return SessionStore(thumbnailCache: cache);
+  } catch (_) {
+    return SessionStore();
   }
 }

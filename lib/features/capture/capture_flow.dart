@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../models/timeline_item.dart';
 import '../../mtg/buckets.dart';
@@ -22,18 +24,21 @@ class CaptureFlow {
     final source = await _pickSource(context);
     if (source == null) return;
 
-    final picked = await ImagePicker().pickImage(source: source);
+    final picked = await _pickImage(source);
     if (picked == null) return;
 
     final store = SessionScope.of(context);
-    final originalPath = picked.path;
+    final workingPath = await _copyToWorkingFile(picked.path) ?? picked.path;
+    final shouldDeleteWorking = workingPath != picked.path;
     String? textCropPath;
     String? artCropPath;
 
     try {
       final textCrop = await _cropImage(
-        sourcePath: originalPath,
+        sourcePath: workingPath,
         title: 'Crop rules text',
+        compressFormat: ImageCompressFormat.png,
+        compressQuality: 100,
       );
       if (textCrop == null) {
         _showSnack(context, 'Capture canceled');
@@ -42,8 +47,10 @@ class CaptureFlow {
       textCropPath = textCrop.path;
 
       final artCrop = await _cropImage(
-        sourcePath: originalPath,
+        sourcePath: workingPath,
         title: 'Crop artwork',
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 90,
       );
       if (artCrop == null) {
         _showSnack(context, 'Capture canceled');
@@ -68,7 +75,9 @@ class CaptureFlow {
     } catch (_) {
       _showSnack(context, 'Capture failed');
     } finally {
-      await _safeDelete(originalPath);
+      if (shouldDeleteWorking) {
+        await _safeDelete(workingPath);
+      }
       await _safeDelete(textCropPath);
       await _safeDelete(artCropPath);
     }
@@ -103,11 +112,13 @@ class CaptureFlow {
   static Future<CroppedFile?> _cropImage({
     required String sourcePath,
     required String title,
+    required ImageCompressFormat compressFormat,
+    required int compressQuality,
   }) {
     return ImageCropper().cropImage(
       sourcePath: sourcePath,
-      compressFormat: ImageCompressFormat.jpg,
-      compressQuality: 90,
+      compressFormat: compressFormat,
+      compressQuality: compressQuality,
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: title,
@@ -126,15 +137,37 @@ class CaptureFlow {
     String sourcePath,
   ) async {
     final bytes = await File(sourcePath).readAsBytes();
-    final decoded = img.decodeImage(bytes);
-    if (decoded == null) return null;
+    return compute(_encodeThumbnail, bytes);
+  }
 
-    final square = img.copyResizeCropSquare(
-      decoded,
-      size: _thumbnailSize,
-    );
-    final jpg = img.encodeJpg(square, quality: _thumbnailQuality);
-    return Uint8List.fromList(jpg);
+  static Future<XFile?> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    try {
+      final picked = await picker.pickImage(source: source);
+      if (picked != null) return picked;
+
+      final lost = await picker.retrieveLostData();
+      if (lost.isEmpty) return null;
+      return lost.file;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<String?> _copyToWorkingFile(String path) async {
+    final source = File(path);
+    if (!await source.exists()) return null;
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final extension = path.contains('.') ? path.split('.').last : 'jpg';
+      final filename =
+          'capture_${DateTime.now().microsecondsSinceEpoch}.$extension';
+      final dest = File('${tempDir.path}/$filename');
+      await source.copy(dest.path);
+      return dest.path;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<void> _safeDelete(String? path) async {
@@ -154,3 +187,14 @@ class CaptureFlow {
   }
 }
 
+Uint8List? _encodeThumbnail(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return null;
+
+  final square = img.copyResizeCropSquare(
+    decoded,
+    size: CaptureFlow._thumbnailSize,
+  );
+  final jpg = img.encodeJpg(square, quality: CaptureFlow._thumbnailQuality);
+  return Uint8List.fromList(jpg);
+}
