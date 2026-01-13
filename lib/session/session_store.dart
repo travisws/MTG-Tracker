@@ -19,7 +19,8 @@ class SessionStore extends ChangeNotifier {
       _itemsByBucketId[bucket.id] = <TimelineItem>[];
       _expandedByBucketId[bucket.id] = false;
       _visibleByBucketId[bucket.id] =
-          visibleBucketIds?.contains(bucket.id) ?? true;
+          visibleBucketIds?.contains(bucket.id) ??
+          MtgBuckets.defaultVisibleBucketIds.contains(bucket.id);
     }
 
     for (final item in initialItems) {
@@ -27,6 +28,12 @@ class SessionStore extends ChangeNotifier {
           ? item.bucketId
           : MtgBuckets.staticEffects.id;
       _itemsByBucketId[bucketId]!.add(item.copyWith(bucketId: bucketId));
+    }
+
+    for (final bucket in MtgBuckets.ordered) {
+      if ((_itemsByBucketId[bucket.id]?.isNotEmpty ?? false)) {
+        _visibleByBucketId[bucket.id] = true;
+      }
     }
 
     for (final bucket in MtgBuckets.ordered) {
@@ -183,7 +190,8 @@ class SessionStore extends ChangeNotifier {
     for (final bucket in MtgBuckets.ordered) {
       _itemsByBucketId[bucket.id]!.clear();
       _expandedByBucketId[bucket.id] = false;
-      _visibleByBucketId[bucket.id] = true;
+      _visibleByBucketId[bucket.id] = MtgBuckets.defaultVisibleBucketIds
+          .contains(bucket.id);
     }
     _restoreIndexByItemId.clear();
     notifyListeners();

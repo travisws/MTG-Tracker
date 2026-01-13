@@ -14,7 +14,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
 
-    final store = SessionStore(initialItems: const []);
+    final store = SessionStore(
+      initialItems: const [],
+      visibleBucketIds: MtgBuckets.ordered.map((bucket) => bucket.id).toSet(),
+    );
     await tester.pumpWidget(MtgResolutionApp(store: store));
 
     double? lastHeaderTop;
@@ -60,7 +63,10 @@ void main() {
   testWidgets('Visible steps sheet shows Hide all only when all visible', (
     WidgetTester tester,
   ) async {
-    final store = SessionStore(initialItems: const []);
+    final store = SessionStore(
+      initialItems: const [],
+      visibleBucketIds: MtgBuckets.ordered.map((bucket) => bucket.id).toSet(),
+    );
     await tester.pumpWidget(MtgResolutionApp(store: store));
 
     await tester.tap(find.byTooltip('Show/Hide Steps'));

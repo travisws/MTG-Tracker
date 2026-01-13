@@ -76,4 +76,13 @@ class MtgBuckets {
     staticEffects,
     trash,
   ];
+
+  static const defaultVisibleBucketIds = <String>{
+    'beginning.upkeep',
+    'beginning.draw',
+    'main.precombat',
+    'combat.attackers',
+    'main.postcombat',
+    'ending.endStep',
+  };
 }
