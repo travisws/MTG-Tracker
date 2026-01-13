@@ -96,21 +96,6 @@ class SessionStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void reorderWithinBucket(String bucketId, int oldIndex, int newIndex) {
-    final bucketItems = _itemsByBucketId[bucketId];
-    if (bucketItems == null) return;
-    if (oldIndex < 0 || oldIndex >= bucketItems.length) return;
-
-    var targetIndex = newIndex;
-    if (targetIndex > bucketItems.length) targetIndex = bucketItems.length;
-    if (oldIndex < targetIndex) targetIndex -= 1;
-    if (targetIndex < 0 || targetIndex >= bucketItems.length) return;
-
-    final item = bucketItems.removeAt(oldIndex);
-    bucketItems.insert(targetIndex, item);
-    notifyListeners();
-  }
-
   void moveItem(String itemId, String toBucketId, {int? toIndex}) {
     if (!_itemsByBucketId.containsKey(toBucketId)) return;
 

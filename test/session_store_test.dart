@@ -7,41 +7,6 @@ import 'package:mtg_list/session/session_store.dart';
 import 'package:mtg_list/thumbnail/thumbnail_cache.dart';
 
 void main() {
-  test('reorderWithinBucket updates ordering', () {
-    final store = SessionStore(
-      initialItems: const [
-        TimelineItem(
-          id: '1',
-          bucketId: 'beginning.upkeep',
-          label: 'A',
-          ocrText: 'A text',
-        ),
-        TimelineItem(
-          id: '2',
-          bucketId: 'beginning.upkeep',
-          label: 'B',
-          ocrText: 'B text',
-        ),
-        TimelineItem(
-          id: '3',
-          bucketId: 'beginning.upkeep',
-          label: 'C',
-          ocrText: 'C text',
-        ),
-      ],
-    );
-
-    store.reorderWithinBucket(MtgBuckets.upkeep.id, 0, 3);
-
-    expect(
-      store
-          .itemsForBucket(MtgBuckets.upkeep.id)
-          .map((item) => item.id)
-          .toList(),
-      ['2', '3', '1'],
-    );
-  });
-
   test('trashItem and restoreItem round trip', () {
     final now = DateTime(2026, 1, 1, 12, 0);
     final store = SessionStore(
