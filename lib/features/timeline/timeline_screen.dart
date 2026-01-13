@@ -342,6 +342,12 @@ class _VisibleStepsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = SessionScope.of(context);
+    final totalBuckets = MtgBuckets.ordered.length;
+    final visibleCount =
+        MtgBuckets.ordered
+            .where((bucket) => store.isBucketVisible(bucket.id))
+            .length;
+    final hiddenCount = totalBuckets - visibleCount;
 
     return SafeArea(
       child: ListView(
@@ -349,10 +355,18 @@ class _VisibleStepsSheet extends StatelessWidget {
         children: [
           ListTile(
             title: const Text('Visible steps'),
-            trailing: TextButton(
-              onPressed: store.showAllBuckets,
-              child: const Text('Show all'),
-            ),
+            trailing:
+                visibleCount == totalBuckets
+                    ? TextButton(
+                      onPressed: store.hideAllBuckets,
+                      child: const Text('Hide all'),
+                    )
+                    : hiddenCount >= 3
+                    ? TextButton(
+                      onPressed: store.showAllBuckets,
+                      child: const Text('Show all'),
+                    )
+                    : null,
           ),
           for (final bucket in MtgBuckets.ordered)
             SwitchListTile(

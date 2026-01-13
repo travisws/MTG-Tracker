@@ -86,6 +86,13 @@ class SessionStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void hideAllBuckets() {
+    for (final bucket in MtgBuckets.ordered) {
+      _visibleByBucketId[bucket.id] = false;
+    }
+    notifyListeners();
+  }
+
   void addItem(TimelineItem item) {
     final bucketId = _itemsByBucketId.containsKey(item.bucketId)
         ? item.bucketId

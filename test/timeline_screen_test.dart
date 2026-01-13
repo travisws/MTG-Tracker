@@ -56,4 +56,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Test Card'), findsOneWidget);
   });
+
+  testWidgets('Visible steps sheet shows Hide all only when all visible', (
+    WidgetTester tester,
+  ) async {
+    final store = SessionStore(initialItems: const []);
+    await tester.pumpWidget(MtgResolutionApp(store: store));
+
+    await tester.tap(find.byTooltip('Show/Hide Steps'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hide all'), findsOneWidget);
+    expect(find.text('Show all'), findsNothing);
+  });
+
+  testWidgets('Visible steps sheet shows Show all when 3+ are hidden', (
+    WidgetTester tester,
+  ) async {
+    final orderedBucketIds = MtgBuckets.ordered
+        .map((bucket) => bucket.id)
+        .toList();
+    final visibleBucketIds =
+        orderedBucketIds.sublist(0, orderedBucketIds.length - 3).toSet();
+
+    final store = SessionStore(
+      initialItems: const [],
+      visibleBucketIds: visibleBucketIds,
+    );
+    await tester.pumpWidget(MtgResolutionApp(store: store));
+
+    await tester.tap(find.byTooltip('Show/Hide Steps'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Show all'), findsOneWidget);
+    expect(find.text('Hide all'), findsNothing);
+  });
 }
