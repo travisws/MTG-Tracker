@@ -33,7 +33,7 @@ Not supporting: web, Windows, Linux desktop.
 - Keep UI “dumb”: business rules and mutations live in the session store (or later, dedicated services), not inside widgets.
 - Keep diffs incremental: avoid broad refactors unless they directly unblock the milestone; add/adjust tests alongside behavior changes.
 - Maintain session-only timeline guarantees: Reset must clear in-memory session state and purge cached thumbnails; deck library persistence is allowed only for saved decks/cards and must be user-deletable.
-- Deck library may persist small thumbnail bytes for saved cards; these persist until the deck is deleted.
+- Deck library may persist small thumbnail files for saved cards; these persist until the deck is deleted.
 
 ## Non-negotiable constraints
 - Session-only timeline: current timeline items/ordering/notes/OCR text must be wiped on Reset.

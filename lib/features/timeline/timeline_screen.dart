@@ -187,21 +187,26 @@ class _BucketBodySliver extends StatelessWidget {
           final item = items[index];
           return TimelineItemRow(
             item: item,
+            onTap: () => _showItemDetailsDialog(context, item),
+            onLongPress: () async {
+              final action = await _showItemActionsSheet(
+                context,
+                allowTrash: false,
+              );
+              if (action == null) return;
+              await _handleItemMenuAction(
+                context,
+                store: store,
+                itemId: item.id,
+                action: action,
+                allowTrash: false,
+              );
+            },
             trailingActions: [
               IconButton(
                 tooltip: 'Restore',
                 onPressed: () => store.restoreItem(item.id),
                 icon: const Icon(Icons.restore_from_trash),
-              ),
-              _ItemMenu(
-                onSelected: (action) => _handleItemMenuAction(
-                  context,
-                  store: store,
-                  itemId: item.id,
-                  action: action,
-                  allowTrash: false,
-                ),
-                allowTrash: false,
               ),
             ],
           );
@@ -220,29 +225,107 @@ class _BucketBodySliver extends StatelessWidget {
           onDismissed: (_) => _trashWithUndo(context, store, item.id),
           child: TimelineItemRow(
             item: item,
-            onLongPress:
-                () => _handleItemMenuAction(
-                  context,
-                  store: store,
-                  itemId: item.id,
-                  action: _ItemMenuAction.move,
-                  allowTrash: true,
-                ),
-            trailingActions: [
-              _ItemMenu(
-                onSelected: (action) => _handleItemMenuAction(
-                  context,
-                  store: store,
-                  itemId: item.id,
-                  action: action,
-                  allowTrash: true,
-                ),
+            onTap: () => _showItemDetailsDialog(context, item),
+            onLongPress: () async {
+              final action = await _showItemActionsSheet(
+                context,
                 allowTrash: true,
-              ),
-            ],
+              );
+              if (action == null) return;
+              await _handleItemMenuAction(
+                context,
+                store: store,
+                itemId: item.id,
+                action: action,
+                allowTrash: true,
+              );
+            },
           ),
         );
       }, childCount: items.length),
+    );
+  }
+
+  Future<void> _showItemDetailsDialog(
+    BuildContext context,
+    TimelineItem item,
+  ) async {
+    final theme = Theme.of(context);
+    final title = item.label.trim().isEmpty ? 'Card details' : item.label;
+    final ocrText =
+        item.ocrText.trim().isEmpty ? 'No rules text yet.' : item.ocrText;
+    final note = item.note?.trim();
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final maxHeight = MediaQuery.of(context).size.height * 0.6;
+        return AlertDialog(
+          title: Text(title),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Rules text', style: theme.textTheme.labelMedium),
+                  const SizedBox(height: 6),
+                  SelectableText(ocrText),
+                  if (note != null && note.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text('Note', style: theme.textTheme.labelMedium),
+                    const SizedBox(height: 6),
+                    Text(note),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<_ItemMenuAction?> _showItemActionsSheet(
+    BuildContext context, {
+    required bool allowTrash,
+  }) {
+    return showModalBottomSheet<_ItemMenuAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_outlined),
+                title: const Text('Move to...'),
+                onTap: () => Navigator.of(context).pop(_ItemMenuAction.move),
+              ),
+              ListTile(
+                leading: const Icon(Icons.library_add),
+                title: const Text('Save to deck...'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ItemMenuAction.saveToDeck),
+              ),
+              if (allowTrash)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: const Text('Move to Trash'),
+                  onTap: () =>
+                      Navigator.of(context).pop(_ItemMenuAction.trash),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -636,39 +719,6 @@ enum _ItemMenuAction { move, saveToDeck, trash }
 
 enum _TimelineMenuAction { saveSessionToDeck, showHideSteps, reset }
 
-class _ItemMenu extends StatelessWidget {
-  const _ItemMenu({required this.onSelected, required this.allowTrash});
-
-  final ValueChanged<_ItemMenuAction> onSelected;
-  final bool allowTrash;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<_ItemMenuAction>(
-      tooltip: 'Item actions',
-      icon: const Icon(Icons.more_horiz),
-      onSelected: onSelected,
-      itemBuilder: (context) {
-        return [
-          const PopupMenuItem(
-            value: _ItemMenuAction.move,
-            child: Text('Move to…'),
-          ),
-          const PopupMenuItem(
-            value: _ItemMenuAction.saveToDeck,
-            child: Text('Save to deck…'),
-          ),
-          if (allowTrash)
-            const PopupMenuItem(
-              value: _ItemMenuAction.trash,
-              child: Text('Move to Trash'),
-            ),
-        ];
-      },
-    );
-  }
-}
-
 class _DeckPickerSheet extends StatelessWidget {
   const _DeckPickerSheet({required this.createDeckSentinel});
 
@@ -778,6 +828,8 @@ class _DeckCardThumbnail extends StatelessWidget {
 
     if (path == null || path!.isEmpty) return placeholder;
 
+    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final cacheSize = (44 * pixelRatio).round();
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Image.file(
@@ -785,6 +837,8 @@ class _DeckCardThumbnail extends StatelessWidget {
         width: 44,
         height: 44,
         fit: BoxFit.cover,
+        cacheWidth: cacheSize,
+        cacheHeight: cacheSize,
         errorBuilder: (_, __, ___) => placeholder,
       ),
     );

@@ -46,25 +46,25 @@ Left:
 
 Center:
 - Label (user note or inferred)
-- OCR snippet (1–2 lines, ellipsis)
+- OCR text hidden until tap (full text in popup)
 - Optional chips: Until EOT, Response, etc.
 
 Right:
-- Drag handle (reorder)
-- Optional overflow menu (Move, Note, Trash)
+- Optional restore icon for Trash
 
 Tap:
-- Detail view with larger thumbnail + full OCR text + notes + Move + Trash/Restore
+- Popup with full OCR text + notes
 
 ## Gestures
 Swipe:
 - One direction only: move to Trash
 - Snackbar with Undo
 
+Long-press:
+- Action sheet: Move to..., Save to deck..., Trash
+
 Reorder:
-- Within-step reorder via drag handle
-- Cross-step move via detail “Move to…” (MVP)
-- Later: drag to another step header
+- Cross-step move via long-press actions (Move to...)
 
 ## Animations (subtle, consistent)
 Targets: 150–250ms

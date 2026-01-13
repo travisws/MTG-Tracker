@@ -21,6 +21,7 @@ class TimelineItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final label = item.label.trim().isEmpty ? 'Untitled card' : item.label;
 
     return Material(
       type: MaterialType.transparency,
@@ -36,7 +37,7 @@ class TimelineItemRow extends StatelessWidget {
               child: SizedBox(
                 width: 56,
                 height: 56,
-                child: _buildThumbnail(theme),
+                child: _buildThumbnail(context, theme),
               ),
             ),
               const SizedBox(width: 12),
@@ -45,20 +46,11 @@ class TimelineItemRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.label,
+                      label,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.ocrText,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -73,7 +65,7 @@ class TimelineItemRow extends StatelessWidget {
     );
   }
 
-  Widget _buildThumbnail(ThemeData theme) {
+  Widget _buildThumbnail(BuildContext context, ThemeData theme) {
     final placeholder = Container(
       color: theme.colorScheme.surfaceContainerHighest,
       alignment: Alignment.center,
@@ -88,9 +80,13 @@ class TimelineItemRow extends StatelessWidget {
       return placeholder;
     }
 
+    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final cacheSize = (56 * pixelRatio).round();
     return Image.file(
       File(path),
       fit: BoxFit.cover,
+      cacheWidth: cacheSize,
+      cacheHeight: cacheSize,
       errorBuilder: (_, __, ___) => placeholder,
     );
   }

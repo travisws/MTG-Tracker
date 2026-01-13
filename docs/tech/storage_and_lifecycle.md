@@ -12,13 +12,14 @@ Everything in the session must be wiped on Reset.
 If using decks, the app may persist:
 - Deck + saved-card metadata (labels/notes)
 - OCR text (string)
-- Small thumbnail bytes for saved cards (optional, user-deletable with the deck)
+- Small thumbnail files for saved cards (optional, user-deletable with the deck)
 
 Do not persist original photos or intermediate crops for decks.
 
 ## Recommended approach
 - Metadata: in-memory only (Riverpod/Bloc/etc.)
-- Thumbnails: small files in temp/cache directory (preferred) OR small bytes in memory
+- Session thumbnails: small files in temp/cache directory
+- Deck thumbnails: small files under app support storage (delete with the deck)
 - Purge originals + intermediate crops immediately after derivatives are produced
 
 ## Capture pipeline (must follow)
@@ -47,7 +48,7 @@ Optional (recommended):
 - Target: 256–320px square
 - Compress: JPEG/WebP at moderate quality
 - Keep thumbnails small to reduce disk and decode memory
-- Deck thumbnail bytes are capped (256 KB) when saving to a deck
+- Deck thumbnail files are capped (256 KB) when saving to a deck
 
 ## Rendering performance notes (Flutter)
 - Use Image.file with cacheWidth/cacheHeight matching display size to prevent oversized decoded images.

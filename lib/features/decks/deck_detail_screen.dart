@@ -416,6 +416,8 @@ class _DeckCardThumbnail extends StatelessWidget {
 
     if (path == null || path!.isEmpty) return placeholder;
 
+    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final cacheSize = (48 * pixelRatio).round();
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Image.file(
@@ -423,6 +425,8 @@ class _DeckCardThumbnail extends StatelessWidget {
         width: 48,
         height: 48,
         fit: BoxFit.cover,
+        cacheWidth: cacheSize,
+        cacheHeight: cacheSize,
         errorBuilder: (_, __, ___) => placeholder,
       ),
     );
