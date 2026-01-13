@@ -51,6 +51,7 @@ class DecksScreen extends StatelessWidget {
           }
 
           return ListView.separated(
+            physics: const ClampingScrollPhysics(),
             itemCount: deckStore.decks.length,
             separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, index) {

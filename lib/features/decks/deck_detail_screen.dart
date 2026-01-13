@@ -70,6 +70,7 @@ class DeckDetailScreen extends StatelessWidget {
                   ),
                 )
               : ListView.separated(
+                  physics: const ClampingScrollPhysics(),
                   itemCount: deck.cards.length,
                   separatorBuilder: (context, index) =>
                       const Divider(height: 1),
@@ -515,6 +516,7 @@ class _BucketPickerSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: ListView(
+        physics: const ClampingScrollPhysics(),
         shrinkWrap: true,
         children: [
           for (final bucket in MtgBuckets.ordered)

@@ -39,6 +39,7 @@ class TimelineScreen extends StatelessWidget {
         child: const Icon(Icons.add_a_photo_outlined),
       ),
       body: CustomScrollView(
+        physics: const ClampingScrollPhysics(),
         slivers: [
           for (final bucket in MtgBuckets.ordered)
             if (store.isBucketVisible(bucket.id)) ...[
@@ -347,6 +348,7 @@ class _VisibleStepsSheet extends StatelessWidget {
 
     return SafeArea(
       child: ListView(
+        physics: const ClampingScrollPhysics(),
         shrinkWrap: true,
         children: [
           ListTile(
@@ -421,6 +423,7 @@ class _DeckPickerSheet extends StatelessWidget {
           }
 
           return ListView(
+            physics: const ClampingScrollPhysics(),
             shrinkWrap: true,
             children: [
               const ListTile(title: Text('Save to deck')),
@@ -476,6 +479,7 @@ class _MoveToBucketSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: ListView(
+        physics: const ClampingScrollPhysics(),
         shrinkWrap: true,
         children: [
           for (final bucket in MtgBuckets.ordered)
