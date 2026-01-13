@@ -80,13 +80,10 @@ void main() {
     await store.createDeck('Multi');
     final deckId = store.decks.single.id;
 
-    await store.addCardsToDeck(
-      deckId,
-      const [
-        DeckCardInput(label: 'A', ocrText: 'Text A'),
-        DeckCardInput(label: 'B', ocrText: 'Text B'),
-      ],
-    );
+    await store.addCardsToDeck(deckId, const [
+      DeckCardInput(label: 'A', ocrText: 'Text A'),
+      DeckCardInput(label: 'B', ocrText: 'Text B'),
+    ]);
 
     expect(store.decks.single.cards, hasLength(2));
     expect(store.decks.single.cards.first.label, 'A');

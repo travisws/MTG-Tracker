@@ -186,10 +186,9 @@ class DecksScreen extends StatelessWidget {
     sessionStore.setActiveDeck(deck.id);
 
     if (!context.mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      AppRoutes.timeline,
-      (route) => false,
-    );
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.timeline, (route) => false);
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(

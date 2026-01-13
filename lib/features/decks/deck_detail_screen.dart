@@ -265,7 +265,6 @@ class DeckDetailScreen extends StatelessWidget {
       ..clearSnackBars()
       ..showSnackBar(const SnackBar(content: Text('Added to timeline')));
   }
-
 }
 
 class _DeckCardTile extends StatelessWidget {

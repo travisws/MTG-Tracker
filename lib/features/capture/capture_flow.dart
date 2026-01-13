@@ -126,16 +126,12 @@ class CaptureFlow {
           toolbarWidgetColor: Colors.white,
           hideBottomControls: false,
         ),
-        IOSUiSettings(
-          title: title,
-        ),
+        IOSUiSettings(title: title),
       ],
     );
   }
 
-  static Future<Uint8List?> _generateThumbnailBytes(
-    String sourcePath,
-  ) async {
+  static Future<Uint8List?> _generateThumbnailBytes(String sourcePath) async {
     final bytes = await File(sourcePath).readAsBytes();
     return compute(_encodeThumbnail, bytes);
   }

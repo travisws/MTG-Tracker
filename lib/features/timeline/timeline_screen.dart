@@ -95,13 +95,9 @@ class TimelineScreen extends StatelessWidget {
                   count: store.itemCountForBucket(bucket.id),
                   isExpanded: store.isBucketExpanded(bucket.id),
                   onToggleExpanded: () => store.toggleBucketExpanded(bucket.id),
-                  onLongPress:
-                      bucket.id == MtgBuckets.trash.id
-                          ? null
-                          : () => _addFromActiveDeck(
-                            context,
-                            bucketId: bucket.id,
-                          ),
+                  onLongPress: bucket.id == MtgBuckets.trash.id
+                      ? null
+                      : () => _addFromActiveDeck(context, bucketId: bucket.id),
                 ),
               ),
               if (store.isBucketExpanded(bucket.id))
@@ -252,8 +248,9 @@ class _BucketBodySliver extends StatelessWidget {
   ) async {
     final theme = Theme.of(context);
     final title = item.label.trim().isEmpty ? 'Card details' : item.label;
-    final ocrText =
-        item.ocrText.trim().isEmpty ? 'No rules text yet.' : item.ocrText;
+    final ocrText = item.ocrText.trim().isEmpty
+        ? 'No rules text yet.'
+        : item.ocrText;
     final note = item.note?.trim();
 
     await showDialog<void>(
@@ -319,8 +316,7 @@ class _BucketBodySliver extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.delete_outline),
                   title: const Text('Move to Trash'),
-                  onTap: () =>
-                      Navigator.of(context).pop(_ItemMenuAction.trash),
+                  onTap: () => Navigator.of(context).pop(_ItemMenuAction.trash),
                 ),
             ],
           ),
@@ -678,10 +674,9 @@ class _VisibleStepsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = SessionScope.of(context);
     final totalBuckets = MtgBuckets.ordered.length;
-    final visibleCount =
-        MtgBuckets.ordered
-            .where((bucket) => store.isBucketVisible(bucket.id))
-            .length;
+    final visibleCount = MtgBuckets.ordered
+        .where((bucket) => store.isBucketVisible(bucket.id))
+        .length;
     final hiddenCount = totalBuckets - visibleCount;
 
     return SafeArea(
@@ -690,18 +685,17 @@ class _VisibleStepsSheet extends StatelessWidget {
         children: [
           ListTile(
             title: const Text('Visible steps'),
-            trailing:
-                visibleCount == totalBuckets
-                    ? TextButton(
-                      onPressed: store.hideAllBuckets,
-                      child: const Text('Hide all'),
-                    )
-                    : hiddenCount >= 3
-                    ? TextButton(
-                      onPressed: store.showAllBuckets,
-                      child: const Text('Show all'),
-                    )
-                    : null,
+            trailing: visibleCount == totalBuckets
+                ? TextButton(
+                    onPressed: store.hideAllBuckets,
+                    child: const Text('Hide all'),
+                  )
+                : hiddenCount >= 3
+                ? TextButton(
+                    onPressed: store.showAllBuckets,
+                    child: const Text('Show all'),
+                  )
+                : null,
           ),
           for (final bucket in MtgBuckets.ordered)
             SwitchListTile(
@@ -784,10 +778,7 @@ class _DeckCardPickerSheet extends StatelessWidget {
           for (final card in deck.cards)
             ListTile(
               leading: _DeckCardThumbnail(
-                path: deckStore.thumbnailPathFor(
-                  deckId: deck.id,
-                  card: card,
-                ),
+                path: deckStore.thumbnailPathFor(deckId: deck.id, card: card),
               ),
               title: Text(card.label.isEmpty ? 'Untitled card' : card.label),
               subtitle: Text(

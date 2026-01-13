@@ -82,8 +82,9 @@ void main() {
     final orderedBucketIds = MtgBuckets.ordered
         .map((bucket) => bucket.id)
         .toList();
-    final visibleBucketIds =
-        orderedBucketIds.sublist(0, orderedBucketIds.length - 3).toSet();
+    final visibleBucketIds = orderedBucketIds
+        .sublist(0, orderedBucketIds.length - 3)
+        .toSet();
 
     final store = SessionStore(
       initialItems: const [],

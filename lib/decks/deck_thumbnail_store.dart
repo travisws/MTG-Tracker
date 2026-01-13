@@ -6,10 +6,7 @@ class DeckThumbnailStore {
 
   final Directory rootDirectory;
 
-  String thumbnailPathFor({
-    required String deckId,
-    required String cardId,
-  }) {
+  String thumbnailPathFor({required String deckId, required String cardId}) {
     return '${rootDirectory.path}/$deckId/$cardId.jpg';
   }
 
@@ -32,9 +29,7 @@ class DeckThumbnailStore {
     required String deckId,
     required String cardId,
   }) async {
-    final file = File(
-      thumbnailPathFor(deckId: deckId, cardId: cardId),
-    );
+    final file = File(thumbnailPathFor(deckId: deckId, cardId: cardId));
     if (!await file.exists()) return null;
     try {
       return await file.readAsBytes();
@@ -47,9 +42,7 @@ class DeckThumbnailStore {
     required String deckId,
     required String cardId,
   }) async {
-    final file = File(
-      thumbnailPathFor(deckId: deckId, cardId: cardId),
-    );
+    final file = File(thumbnailPathFor(deckId: deckId, cardId: cardId));
     if (!await file.exists()) return;
     try {
       await file.delete();

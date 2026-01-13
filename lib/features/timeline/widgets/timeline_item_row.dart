@@ -32,14 +32,14 @@ class TimelineItemRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: _buildThumbnail(context, theme),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: _buildThumbnail(context, theme),
+                ),
               ),
-            ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

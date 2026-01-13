@@ -37,16 +37,10 @@ class DeckLibraryStore extends ChangeNotifier {
     return _decks[index];
   }
 
-  String? thumbnailPathFor({
-    required String deckId,
-    required DeckCard card,
-  }) {
+  String? thumbnailPathFor({required String deckId, required DeckCard card}) {
     if (!card.hasThumbnail) return null;
     if (_thumbnailStore == null) return null;
-    return _thumbnailStore!.thumbnailPathFor(
-      deckId: deckId,
-      cardId: card.id,
-    );
+    return _thumbnailStore!.thumbnailPathFor(deckId: deckId, cardId: card.id);
   }
 
   Future<void> load() async {
@@ -104,24 +98,18 @@ class DeckLibraryStore extends ChangeNotifier {
     String? defaultBucketId,
     Uint8List? thumbnailBytes,
   }) async {
-    await addCardsToDeck(
-      deckId,
-      [
-        DeckCardInput(
-          label: label,
-          ocrText: ocrText,
-          note: note,
-          defaultBucketId: defaultBucketId,
-          thumbnailBytes: thumbnailBytes,
-        ),
-      ],
-    );
+    await addCardsToDeck(deckId, [
+      DeckCardInput(
+        label: label,
+        ocrText: ocrText,
+        note: note,
+        defaultBucketId: defaultBucketId,
+        thumbnailBytes: thumbnailBytes,
+      ),
+    ]);
   }
 
-  Future<void> addCardsToDeck(
-    String deckId,
-    List<DeckCardInput> cards,
-  ) async {
+  Future<void> addCardsToDeck(String deckId, List<DeckCardInput> cards) async {
     if (cards.isEmpty) return;
     final deckIndex = _decks.indexWhere((deck) => deck.id == deckId);
     if (deckIndex == -1) return;
