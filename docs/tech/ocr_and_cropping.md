@@ -8,6 +8,10 @@
 Suggested package:
 - google_mlkit_text_recognition
 
+## Current implementation
+- OCR runs immediately after the text crop, before the art crop.
+- Text crop is deleted right after OCR completes.
+
 ## Cropping requirements
 Two regions from one capture:
 - Text region for OCR

@@ -1,13 +1,12 @@
 # Roadmap (Feature Build Order)
 
 ## Current focus (next tasks)
-- Phase 3: capture pipeline entry + two-step crop (no OCR yet)
+- Phase 5: on-device OCR integration
 Acceptance criteria:
-- App runs on iOS + Android
-- Capture flow prompts for camera or library
-- Two-step crop (text then art) completes and adds a timeline item
-- Thumbnails are generated and stored in temp/cache; originals/crops are purged
-- OCR is still pending (placeholder text)
+- Text crop runs through ML Kit and populates OCR text
+- OCR completes before art crop + thumbnail
+- Text crop is deleted immediately after OCR
+- OCR failures create items with "OCR failed" text
 
 ## Feature build order (MVP-first)
 

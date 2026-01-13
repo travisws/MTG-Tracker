@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -46,6 +47,10 @@ class CaptureFlow {
       }
       textCropPath = textCrop.path;
 
+      final ocrText = await _runOcr(textCropPath!);
+      await _safeDelete(textCropPath);
+      textCropPath = null;
+
       final artCrop = await _cropImage(
         sourcePath: workingPath,
         title: 'Crop artwork',
@@ -66,17 +71,26 @@ class CaptureFlow {
         return;
       }
 
+      final resolvedOcrText =
+          ocrText == null || ocrText.trim().isEmpty
+              ? 'OCR failed'
+              : ocrText.trim();
       store.addItem(
         TimelineItem(
           id: newSessionItemId(),
           bucketId: bucketId,
           label: 'Scanned card',
-          ocrText: 'OCR pending',
+          ocrText: resolvedOcrText,
           thumbnailPath: thumbnailPath,
         ),
       );
 
-      _showSnack(context, 'Added card (OCR pending)');
+      _showSnack(
+        context,
+        resolvedOcrText == 'OCR failed'
+            ? 'Added card (OCR failed)'
+            : 'Added card',
+      );
     } catch (_) {
       _showSnack(context, 'Capture failed');
     } finally {
@@ -135,6 +149,19 @@ class CaptureFlow {
         );
       },
     );
+  }
+
+  static Future<String?> _runOcr(String path) async {
+    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    try {
+      final input = InputImage.fromFilePath(path);
+      final result = await recognizer.processImage(input);
+      return result.text;
+    } catch (_) {
+      return null;
+    } finally {
+      await recognizer.close();
+    }
   }
 
   static Future<CroppedFile?> _cropImage({
