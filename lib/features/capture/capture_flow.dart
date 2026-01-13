@@ -60,11 +60,16 @@ class CaptureFlow {
 
       final thumbnailBytes = await _generateThumbnailBytes(artCropPath);
       final thumbnailPath = await store.cacheThumbnailBytes(thumbnailBytes);
+      final bucketId = await _pickBucket(context);
+      if (bucketId == null) {
+        _showSnack(context, 'Capture canceled');
+        return;
+      }
 
       store.addItem(
         TimelineItem(
           id: newSessionItemId(),
-          bucketId: MtgBuckets.staticEffects.id,
+          bucketId: bucketId,
           label: 'Scanned card',
           ocrText: 'OCR pending',
           thumbnailPath: thumbnailPath,
@@ -102,6 +107,29 @@ class CaptureFlow {
                 title: const Text('Choose from library'),
                 onTap: () => Navigator.of(context).pop(ImageSource.gallery),
               ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static Future<String?> _pickBucket(BuildContext context) {
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(title: Text('Add to step')),
+              for (final bucket in MtgBuckets.ordered)
+                if (bucket.id != MtgBuckets.trash.id)
+                  ListTile(
+                    title: Text(bucket.label),
+                    onTap: () => Navigator.of(context).pop(bucket.id),
+                  ),
             ],
           ),
         );

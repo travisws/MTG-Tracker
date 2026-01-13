@@ -29,6 +29,7 @@ Body:
 Primary action:
 - Floating Action Button (bottom-right): + Capture
 - FAB opens modal bottom sheet: Camera / Import
+- After capture + crop, choose the step to add the card into
 
 ## Step header (collapsible)
 Header shows:
