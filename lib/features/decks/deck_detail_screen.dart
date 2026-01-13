@@ -393,7 +393,7 @@ class _DeckCardThumbnail extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Icon(
-        Icons.image_outlined,
+        Icons.image_not_supported_outlined,
         color: theme.colorScheme.onSurfaceVariant,
         size: 20,
       ),

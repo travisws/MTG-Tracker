@@ -26,7 +26,10 @@ class TimelineScreen extends StatelessWidget {
     final store = SessionScope.of(context);
 
     return Scaffold(
-      drawer: const AppDrawer(currentRoute: AppRoutes.timeline),
+      drawer: AppDrawer(
+        currentRoute: AppRoutes.timeline,
+        onSaveSessionToDeck: () => _saveSessionToDeck(context),
+      ),
       appBar: AppBar(
         title: const Text('Current Turn'),
         actions: [
@@ -44,6 +47,36 @@ class TimelineScreen extends StatelessWidget {
             onPressed: () => _confirmAndReset(context),
             tooltip: 'Reset',
             icon: const Icon(Icons.restart_alt),
+          ),
+          PopupMenuButton<_TimelineMenuAction>(
+            tooltip: 'More',
+            onSelected: (action) {
+              switch (action) {
+                case _TimelineMenuAction.saveSessionToDeck:
+                  _saveSessionToDeck(context);
+                  break;
+                case _TimelineMenuAction.showHideSteps:
+                  _showVisibleStepsSheet(context);
+                  break;
+                case _TimelineMenuAction.reset:
+                  _confirmAndReset(context);
+                  break;
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: _TimelineMenuAction.saveSessionToDeck,
+                child: Text('Save session to deck'),
+              ),
+              PopupMenuItem(
+                value: _TimelineMenuAction.showHideSteps,
+                child: Text('Show/Hide steps'),
+              ),
+              PopupMenuItem(
+                value: _TimelineMenuAction.reset,
+                child: Text('Reset session'),
+              ),
+            ],
           ),
         ],
       ),
@@ -275,7 +308,7 @@ class _BucketBodySliver extends StatelessWidget {
         ? item.previousBucketId
         : item.bucketId;
 
-    final thumbnailBytes = await _loadThumbnailBytes(item.thumbnailPath);
+    final thumbnailResult = await _loadThumbnail(item.thumbnailPath);
 
     await deckStore.addCardToDeck(
       deckId,
@@ -283,13 +316,18 @@ class _BucketBodySliver extends StatelessWidget {
       ocrText: item.ocrText,
       note: item.note,
       defaultBucketId: defaultBucketId,
-      thumbnailBytes: thumbnailBytes,
+      thumbnailBytes: thumbnailResult.bytes,
     );
 
     if (!context.mounted) return;
+    final message = _thumbnailWarningMessage(
+      base: 'Saved to deck',
+      missingCount: thumbnailResult.wasMissing ? 1 : 0,
+      tooLargeCount: thumbnailResult.wasTooLarge ? 1 : 0,
+    );
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(const SnackBar(content: Text('Saved to deck')));
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -313,15 +351,23 @@ Future<void> _saveSessionToDeck(BuildContext context) async {
   if (deckId == null) return;
 
   final inputs = <DeckCardInput>[];
+  var missingCount = 0;
+  var tooLargeCount = 0;
   for (final item in items) {
-    final thumbnailBytes = await _loadThumbnailBytes(item.thumbnailPath);
+    final thumbnailResult = await _loadThumbnail(item.thumbnailPath);
+    if (thumbnailResult.wasMissing) {
+      missingCount += 1;
+    }
+    if (thumbnailResult.wasTooLarge) {
+      tooLargeCount += 1;
+    }
     inputs.add(
       DeckCardInput(
         label: item.label,
         ocrText: item.ocrText,
         note: item.note,
         defaultBucketId: item.bucketId,
-        thumbnailBytes: thumbnailBytes,
+        thumbnailBytes: thumbnailResult.bytes,
       ),
     );
   }
@@ -329,13 +375,14 @@ Future<void> _saveSessionToDeck(BuildContext context) async {
 
   if (!context.mounted) return;
   final deckName = deckStore.deckById(deckId)?.name ?? 'deck';
+  final message = _thumbnailWarningMessage(
+    base: 'Saved ${items.length} cards to $deckName',
+    missingCount: missingCount,
+    tooLargeCount: tooLargeCount,
+  );
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
-    ..showSnackBar(
-      SnackBar(
-        content: Text('Saved ${items.length} cards to $deckName'),
-      ),
-    );
+    ..showSnackBar(SnackBar(content: Text(message)));
 }
 
 Future<String?> _pickDeckId(
@@ -486,13 +533,57 @@ Future<void> _addFromActiveDeck(
     ..showSnackBar(const SnackBar(content: Text('Added from deck')));
 }
 
-Future<Uint8List?> _loadThumbnailBytes(String? path) async {
-  if (path == null || path.isEmpty) return null;
+Future<_ThumbnailLoadResult> _loadThumbnail(String? path) async {
+  if (path == null || path.isEmpty) {
+    return const _ThumbnailLoadResult(wasMissing: true);
+  }
   final file = File(path);
-  if (!await file.exists()) return null;
+  if (!await file.exists()) {
+    return const _ThumbnailLoadResult(wasMissing: true);
+  }
   final length = await file.length();
-  if (length > _maxThumbnailBytes) return null;
-  return file.readAsBytes();
+  if (length > _maxThumbnailBytes) {
+    return const _ThumbnailLoadResult(wasTooLarge: true);
+  }
+  try {
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      return const _ThumbnailLoadResult(wasMissing: true);
+    }
+    return _ThumbnailLoadResult(bytes: bytes);
+  } catch (_) {
+    return const _ThumbnailLoadResult(wasMissing: true);
+  }
+}
+
+String _thumbnailWarningMessage({
+  required String base,
+  required int missingCount,
+  required int tooLargeCount,
+}) {
+  if (missingCount == 0 && tooLargeCount == 0) {
+    return base;
+  }
+  final details = <String>[];
+  if (missingCount > 0) {
+    details.add('$missingCount without thumbnails');
+  }
+  if (tooLargeCount > 0) {
+    details.add('$tooLargeCount too large');
+  }
+  return '$base (${details.join(', ')})';
+}
+
+class _ThumbnailLoadResult {
+  const _ThumbnailLoadResult({
+    this.bytes,
+    this.wasMissing = false,
+    this.wasTooLarge = false,
+  });
+
+  final Uint8List? bytes;
+  final bool wasMissing;
+  final bool wasTooLarge;
 }
 
 class _VisibleStepsSheet extends StatelessWidget {
@@ -540,6 +631,8 @@ class _VisibleStepsSheet extends StatelessWidget {
 }
 
 enum _ItemMenuAction { move, saveToDeck, trash }
+
+enum _TimelineMenuAction { saveSessionToDeck, showHideSteps, reset }
 
 class _ItemMenu extends StatelessWidget {
   const _ItemMenu({required this.onSelected, required this.allowTrash});
@@ -669,7 +762,7 @@ class _DeckCardThumbnail extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Icon(
-        Icons.image_outlined,
+        Icons.image_not_supported_outlined,
         color: theme.colorScheme.onSurfaceVariant,
         size: 18,
       ),

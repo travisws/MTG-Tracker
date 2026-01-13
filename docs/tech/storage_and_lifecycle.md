@@ -47,6 +47,7 @@ Optional (recommended):
 - Target: 256–320px square
 - Compress: JPEG/WebP at moderate quality
 - Keep thumbnails small to reduce disk and decode memory
+- Deck thumbnail bytes are capped (256 KB) when saving to a deck
 
 ## Rendering performance notes (Flutter)
 - Use Image.file with cacheWidth/cacheHeight matching display size to prevent oversized decoded images.

@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import 'routes.dart';
 
 class AppDrawer extends StatelessWidget {
-  const AppDrawer({required this.currentRoute, super.key});
+  const AppDrawer({
+    required this.currentRoute,
+    this.onSaveSessionToDeck,
+    super.key,
+  });
 
   final String currentRoute;
+  final VoidCallback? onSaveSessionToDeck;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +39,16 @@ class AppDrawer extends StatelessWidget {
               selected: currentRoute == AppRoutes.decks,
               onTap: () => _go(context, AppRoutes.decks),
             ),
+            if (onSaveSessionToDeck != null) const Divider(height: 1),
+            if (onSaveSessionToDeck != null)
+              ListTile(
+                leading: const Icon(Icons.library_add),
+                title: const Text('Save session to deck'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onSaveSessionToDeck?.call();
+                },
+              ),
           ],
         ),
       ),
