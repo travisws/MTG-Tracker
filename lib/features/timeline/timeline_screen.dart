@@ -167,22 +167,22 @@ class _BucketBodySliver extends StatelessWidget {
           background: const SizedBox.shrink(),
           secondaryBackground: _TrashSwipeBackground(),
           onDismissed: (_) => _trashWithUndo(context, store, item.id),
-          child: TimelineItemRow(
-            item: item,
-            trailingActions: [
-              _ItemMenu(
-                onSelected: (action) => _handleItemMenuAction(
-                  context,
-                  store: store,
-                  itemId: item.id,
-                  action: action,
+          child: ReorderableDelayedDragStartListener(
+            index: index,
+            child: TimelineItemRow(
+              item: item,
+              trailingActions: [
+                _ItemMenu(
+                  onSelected: (action) => _handleItemMenuAction(
+                    context,
+                    store: store,
+                    itemId: item.id,
+                    action: action,
+                    allowTrash: true,
+                  ),
                   allowTrash: true,
                 ),
-                allowTrash: true,
-              ),
-              ReorderableDragStartListener(
-                index: index,
-                child: Padding(
+                Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 6,
@@ -192,8 +192,8 @@ class _BucketBodySliver extends StatelessWidget {
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
