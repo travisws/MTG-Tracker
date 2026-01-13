@@ -48,11 +48,11 @@ void main() {
     expect(find.text('Upkeep'), findsOneWidget);
     expect(find.text('Test Card'), findsOneWidget);
 
-    await tester.tap(find.text('Upkeep'));
+    await tester.tap(find.byKey(const Key('bucket-toggle-beginning.upkeep')));
     await tester.pumpAndSettle();
     expect(find.text('Test Card'), findsNothing);
 
-    await tester.tap(find.text('Upkeep'));
+    await tester.tap(find.byKey(const Key('bucket-toggle-beginning.upkeep')));
     await tester.pumpAndSettle();
     expect(find.text('Test Card'), findsOneWidget);
   });

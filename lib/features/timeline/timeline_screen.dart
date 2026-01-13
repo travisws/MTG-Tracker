@@ -6,7 +6,7 @@ import '../../decks/deck_library_scope.dart';
 import '../../mtg/buckets.dart';
 import '../../session/session_scope.dart';
 import '../../session/session_store.dart';
-import 'widgets/bucket_header_delegate.dart';
+import 'widgets/bucket_header.dart';
 import 'widgets/timeline_item_row.dart';
 
 class TimelineScreen extends StatelessWidget {
@@ -43,19 +43,17 @@ class TimelineScreen extends StatelessWidget {
         slivers: [
           for (final bucket in MtgBuckets.ordered)
             if (store.isBucketVisible(bucket.id)) ...[
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: BucketHeaderDelegate(
+              SliverToBoxAdapter(
+                child: BucketHeader(
+                  bucketId: bucket.id,
                   label: bucket.label,
                   count: store.itemCountForBucket(bucket.id),
                   isExpanded: store.isBucketExpanded(bucket.id),
-                  onTap: () => store.toggleBucketExpanded(bucket.id),
+                  onToggleExpanded: () => store.toggleBucketExpanded(bucket.id),
                 ),
               ),
               if (store.isBucketExpanded(bucket.id))
-                _BucketBodySliver(bucketId: bucket.id)
-              else
-                const SliverToBoxAdapter(child: SizedBox.shrink()),
+                _BucketBodySliver(bucketId: bucket.id),
             ],
           const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
