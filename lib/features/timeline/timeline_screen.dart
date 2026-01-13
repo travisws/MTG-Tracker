@@ -158,8 +158,8 @@ class _BucketBodySliver extends StatelessWidget {
       );
     }
 
-    return SliverReorderableList(
-      itemBuilder: (context, index) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((context, index) {
         final item = items[index];
         return Dismissible(
           key: ValueKey(item.id),
@@ -167,40 +167,31 @@ class _BucketBodySliver extends StatelessWidget {
           background: const SizedBox.shrink(),
           secondaryBackground: _TrashSwipeBackground(),
           onDismissed: (_) => _trashWithUndo(context, store, item.id),
-          child: ReorderableDelayedDragStartListener(
-            index: index,
-            child: TimelineItemRow(
-              item: item,
-              trailingActions: [
-                _ItemMenu(
-                  onSelected: (action) => _handleItemMenuAction(
-                    context,
-                    store: store,
-                    itemId: item.id,
-                    action: action,
-                    allowTrash: true,
-                  ),
+          child: TimelineItemRow(
+            item: item,
+            onLongPress:
+                () => _handleItemMenuAction(
+                  context,
+                  store: store,
+                  itemId: item.id,
+                  action: _ItemMenuAction.move,
                   allowTrash: true,
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  child: Icon(
-                    Icons.drag_handle,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+            trailingActions: [
+              _ItemMenu(
+                onSelected: (action) => _handleItemMenuAction(
+                  context,
+                  store: store,
+                  itemId: item.id,
+                  action: action,
+                  allowTrash: true,
                 ),
-              ],
-            ),
+                allowTrash: true,
+              ),
+            ],
           ),
         );
-      },
-      itemCount: items.length,
-      onReorder: (oldIndex, newIndex) {
-        store.reorderWithinBucket(bucketId, oldIndex, newIndex);
-      },
+      }, childCount: items.length),
     );
   }
 

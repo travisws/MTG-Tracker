@@ -6,12 +6,14 @@ class TimelineItemRow extends StatelessWidget {
   const TimelineItemRow({
     required this.item,
     this.onTap,
+    this.onLongPress,
     this.trailingActions = const [],
     super.key,
   });
 
   final TimelineItem item;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final List<Widget> trailingActions;
 
   @override
@@ -22,6 +24,7 @@ class TimelineItemRow extends StatelessWidget {
       type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
