@@ -88,6 +88,10 @@ Goal: avoid rescanning the same cards across games by saving OCR text (and later
 37) Optional: export/import decks as JSON (share between devices without accounts)
 38) Optional: store small thumbnails per saved card (must still follow “no originals” rule)
 
+### Phase 12 — Media import + deck thumbnail refresh (future)
+39) Import image from device/library instead of camera for capture flow.
+40) Update a saved deck card’s thumbnail (replace image) without changing its text/notes.
+
 ## Do not start yet (scope guard)
 - Cloud sync/accounts
 - Cloud OCR
