@@ -1,11 +1,11 @@
 # Roadmap (Feature Build Order)
 
 ## Current focus (next tasks)
-- Phase 7: auto-bucketing suggestions
+- Phase 8: hardening + cleanup guarantees
 Acceptance criteria:
-- Classifier suggests a bucket from OCR rules text
-- Bucket picker surfaces the suggestion without auto-selecting
-- Manual override always available
+- Reset deletes cached thumbnails
+- Optional startup purge is available
+- Thumbnails render with cacheWidth/cacheHeight and ImageCache is capped if needed
 
 ## Feature build order (MVP-first)
 

@@ -120,6 +120,15 @@ class SessionStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateItemDetails(String itemId, {required String label, String? note}) {
+    final location = _locateItem(itemId);
+    if (location == null) return;
+    final list = _itemsByBucketId[location.bucketId]!;
+    final item = list[location.index];
+    list[location.index] = item.copyWith(label: label, note: note);
+    notifyListeners();
+  }
+
   Future<String?> cacheThumbnailBytes(List<int>? bytes) async {
     if (bytes == null || bytes.isEmpty) return null;
     if (_thumbnailCache == null) return null;

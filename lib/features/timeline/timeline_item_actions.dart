@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../models/timeline_item.dart';
 import '../../session/session_scope.dart';
 import '../../session/session_store.dart';
 import 'timeline_deck_actions.dart';
+import 'timeline_item_detail_screen.dart';
 import 'widgets/move_to_bucket_sheet.dart';
 import 'widgets/visible_steps_sheet.dart';
 
@@ -58,51 +58,8 @@ void showVisibleStepsSheet(BuildContext context) {
   );
 }
 
-Future<void> showItemDetailsDialog(
-  BuildContext context,
-  TimelineItem item,
-) async {
-  final theme = Theme.of(context);
-  final title = item.label.trim().isEmpty ? 'Card details' : item.label;
-  final ocrText = item.ocrText.trim().isEmpty
-      ? 'No rules text yet.'
-      : item.ocrText;
-  final note = item.note?.trim();
-
-  await showDialog<void>(
-    context: context,
-    builder: (context) {
-      final maxHeight = MediaQuery.of(context).size.height * 0.6;
-      return AlertDialog(
-        title: Text(title),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeight),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Rules text', style: theme.textTheme.labelMedium),
-                const SizedBox(height: 6),
-                SelectableText(ocrText),
-                if (note != null && note.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text('Note', style: theme.textTheme.labelMedium),
-                  const SizedBox(height: 6),
-                  Text(note),
-                ],
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      );
-    },
-  );
+Future<void> openItemDetails(BuildContext context, String itemId) {
+  return TimelineItemDetailScreen.open(context, itemId: itemId);
 }
 
 Future<TimelineItemMenuAction?> showItemActionsSheet(

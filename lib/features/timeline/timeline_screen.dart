@@ -127,7 +127,7 @@ class _BucketBodySliver extends StatelessWidget {
           final item = items[index];
           return TimelineItemRow(
             item: item,
-            onTap: () => showItemDetailsDialog(context, item),
+            onTap: () => openItemDetails(context, item.id),
             onLongPress: () async {
               final action = await showItemActionsSheet(
                 context,
@@ -166,7 +166,7 @@ class _BucketBodySliver extends StatelessWidget {
           onDismissed: (_) => trashWithUndo(context, store, item.id),
           child: TimelineItemRow(
             item: item,
-            onTap: () => showItemDetailsDialog(context, item),
+            onTap: () => openItemDetails(context, item.id),
             onLongPress: () async {
               final action = await showItemActionsSheet(
                 context,
