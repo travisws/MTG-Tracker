@@ -1,11 +1,12 @@
 # Roadmap (Feature Build Order)
 
 ## Current focus (next tasks)
-- Phase 8: hardening + cleanup guarantees
+- Phase 9: polish
 Acceptance criteria:
-- Reset deletes cached thumbnails
-- Optional startup purge is available
-- Thumbnails render with cacheWidth/cacheHeight and ImageCache is capped if needed
+- Timeline expand/collapse uses smooth animation
+- Item insertions animate in (fade/slide)
+- Light haptics for key actions
+- Accessibility pass (tap targets, contrast)
 
 ## Feature build order (MVP-first)
 

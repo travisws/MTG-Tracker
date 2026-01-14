@@ -53,3 +53,4 @@ Optional (recommended):
 ## Rendering performance notes (Flutter)
 - Use Image.file with cacheWidth/cacheHeight matching display size to prevent oversized decoded images.
 - Avoid holding decoded full-size images in memory.
+- Cap ImageCache size/bytes to keep thumbnail decoding bounded.
