@@ -28,6 +28,13 @@
 	<string>Capture card images to scan rules text.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select card images to scan rules text.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Allow local network access for wireless debugging.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dartobservatory._tcp</string>
+		<string>_dartvmservice._tcp</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
