@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -49,11 +50,7 @@ class CaptureFlow {
       }
       textCropPath = textCrop.path;
 
-      final ocrInputPath = await _prepareOcrInput(textCropPath!);
-      final ocrText = await _runOcr(ocrInputPath);
-      if (ocrInputPath != textCropPath) {
-        await _safeDelete(ocrInputPath);
-      }
+      final ocrText = await _runOcrWithFallbacks(textCropPath!);
       await _safeDelete(textCropPath);
       textCropPath = null;
 
@@ -160,23 +157,66 @@ class CaptureFlow {
     );
   }
 
-  static Future<String?> _runOcr(String path) async {
+  static Future<String?> _runOcrWithFallbacks(String sourcePath) async {
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    final tempPaths = <String>[];
+    try {
+      final originalText = await _runOcrOnPath(recognizer, sourcePath);
+      if (_isGoodOcrText(originalText)) return originalText;
+
+      final processedPath = await _prepareOcrInput(
+        sourcePath,
+        highContrast: false,
+      );
+      if (processedPath != sourcePath) tempPaths.add(processedPath);
+      final processedText = await _runOcrOnPath(recognizer, processedPath);
+      var bestText = _pickBestText(originalText, processedText);
+      if (_isGoodOcrText(bestText)) return bestText;
+
+      final highContrastPath = await _prepareOcrInput(
+        sourcePath,
+        highContrast: true,
+      );
+      if (highContrastPath != sourcePath) tempPaths.add(highContrastPath);
+      final highContrastText = await _runOcrOnPath(
+        recognizer,
+        highContrastPath,
+      );
+      bestText = _pickBestText(bestText, highContrastText);
+      return bestText;
+    } catch (_) {
+      return null;
+    } finally {
+      await recognizer.close();
+      for (final path in tempPaths) {
+        await _safeDelete(path);
+      }
+    }
+  }
+
+  static Future<String?> _runOcrOnPath(
+    TextRecognizer recognizer,
+    String path,
+  ) async {
     try {
       final input = InputImage.fromFilePath(path);
       final result = await recognizer.processImage(input);
       return result.text;
     } catch (_) {
       return null;
-    } finally {
-      await recognizer.close();
     }
   }
 
-  static Future<String> _prepareOcrInput(String sourcePath) async {
+  static Future<String> _prepareOcrInput(
+    String sourcePath, {
+    required bool highContrast,
+  }) async {
     try {
       final bytes = await File(sourcePath).readAsBytes();
-      final processed = await compute(_preprocessOcrImage, bytes);
+      final processed = await compute(
+        highContrast ? _preprocessOcrImageHighContrast : _preprocessOcrImage,
+        bytes,
+      );
       if (processed == null) return sourcePath;
       final tempDir = await getTemporaryDirectory();
       final filename = 'ocr_${DateTime.now().microsecondsSinceEpoch}.png';
@@ -214,8 +254,7 @@ class CaptureFlow {
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(controller.text),
+                onPressed: () => Navigator.of(context).pop(controller.text),
                 child: const Text('Save text'),
               ),
             ],
@@ -225,6 +264,31 @@ class CaptureFlow {
     } finally {
       controller.dispose();
     }
+  }
+
+  static String? _pickBestText(String? first, String? second) {
+    if (first == null) return second;
+    if (second == null) return first;
+    return _scoreOcrText(second) > _scoreOcrText(first) ? second : first;
+  }
+
+  static int _scoreOcrText(String? text) {
+    if (text == null) return 0;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return 0;
+    final alnumMatches = RegExp(r'[A-Za-z0-9]').allMatches(trimmed).length;
+    final lineBreaks = '\n'.allMatches(trimmed).length;
+    return alnumMatches + (lineBreaks * 6);
+  }
+
+  static bool _isGoodOcrText(String? text) {
+    if (text == null) return false;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    final compact = trimmed.replaceAll(RegExp(r'\s+'), '');
+    if (compact.length >= 120) return true;
+    if (compact.length >= 40 && trimmed.contains('\n')) return true;
+    return false;
   }
 
   static String _resolveOcrText({
@@ -319,6 +383,9 @@ class CaptureFlow {
   }
 }
 
+const int _ocrMinSide = 900;
+const int _ocrMaxSide = 2000;
+
 Uint8List? _encodeThumbnail(Uint8List bytes) {
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return null;
@@ -335,8 +402,43 @@ Uint8List? _preprocessOcrImage(Uint8List bytes) {
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return null;
 
-  final grayscale = img.grayscale(decoded);
-  final normalized = img.normalize(grayscale, min: 0, max: 255);
-  final png = img.encodePng(normalized);
+  var processed = _resizeForOcr(decoded);
+  processed = img.grayscale(processed);
+  processed = img.contrast(processed, contrast: 125);
+  processed = img.normalize(processed, min: 0, max: 255);
+  final png = img.encodePng(processed, level: 6);
   return Uint8List.fromList(png);
+}
+
+Uint8List? _preprocessOcrImageHighContrast(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return null;
+
+  var processed = _resizeForOcr(decoded);
+  processed = img.grayscale(processed);
+  processed = img.contrast(processed, contrast: 160);
+  processed = img.normalize(processed, min: 0, max: 255);
+  processed = img.luminanceThreshold(processed, threshold: 0.6);
+  final png = img.encodePng(processed, level: 6);
+  return Uint8List.fromList(png);
+}
+
+img.Image _resizeForOcr(img.Image source) {
+  final minSide = math.min(source.width, source.height);
+  final maxSide = math.max(source.width, source.height);
+  if (minSide >= _ocrMinSide && maxSide <= _ocrMaxSide) {
+    return source;
+  }
+
+  final scale = minSide < _ocrMinSide
+      ? _ocrMinSide / minSide
+      : _ocrMaxSide / maxSide;
+  final targetWidth = (source.width * scale).round();
+  final targetHeight = (source.height * scale).round();
+  return img.copyResize(
+    source,
+    width: targetWidth,
+    height: targetHeight,
+    interpolation: img.Interpolation.cubic,
+  );
 }

@@ -11,7 +11,8 @@ Suggested package:
 ## Current implementation
 - OCR runs immediately after the text crop, before the art crop.
 - Text crop is deleted right after OCR completes.
-- OCR input is lightly preprocessed (grayscale + normalize) before recognition.
+- OCR runs a best-of pass: original crop, then a preprocessed pass, then a high-contrast fallback if needed.
+- Preprocessing includes resize for OCR, grayscale, contrast boost, normalize, and (fallback) luminance threshold.
 - User reviews/edits the OCR text before choosing a step.
 
 ## Cropping requirements
