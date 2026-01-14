@@ -87,7 +87,7 @@ class TimelineItemRow extends StatelessWidget {
       fit: BoxFit.cover,
       cacheWidth: cacheSize,
       cacheHeight: cacheSize,
-      errorBuilder: (_, __, ___) => placeholder,
+      errorBuilder: (context, error, stackTrace) => placeholder,
     );
   }
 }

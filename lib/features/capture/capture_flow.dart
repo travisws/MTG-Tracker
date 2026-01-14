@@ -1,7 +1,5 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -15,7 +13,6 @@ import '../../mtg/buckets.dart';
 import '../../mtg/ocr_bucket_classifier.dart';
 import '../../session/session_item_id.dart';
 import '../../session/session_scope.dart';
-import '../../session/session_store.dart';
 
 class CaptureFlow {
   const CaptureFlow._();
@@ -26,9 +23,11 @@ class CaptureFlow {
   static Future<void> start(BuildContext context) async {
     final source = await _pickSource(context);
     if (source == null) return;
+    if (!context.mounted) return;
 
     final picked = await _pickImage(source);
     if (picked == null) return;
+    if (!context.mounted) return;
 
     final store = SessionScope.of(context);
     final originalPath = picked.path;
@@ -45,13 +44,15 @@ class CaptureFlow {
         compressFormat: ImageCompressFormat.png,
         compressQuality: 100,
       );
+      if (!context.mounted) return;
       if (textCrop == null) {
         _showSnack(context, 'Capture canceled');
         return;
       }
-      textCropPath = textCrop.path;
+      final textCropPathValue = textCrop.path;
+      textCropPath = textCropPathValue;
 
-      final ocrText = await _runOcrWithFallbacks(textCropPath!);
+      final ocrText = await _runOcrWithFallbacks(textCropPathValue);
       await _safeDelete(textCropPath);
       textCropPath = null;
 
@@ -61,15 +62,16 @@ class CaptureFlow {
         compressFormat: ImageCompressFormat.jpg,
         compressQuality: 90,
       );
+      if (!context.mounted) return;
       if (artCrop == null) {
         _showSnack(context, 'Capture canceled');
         return;
       }
       artCropPath = artCrop.path;
 
-      final thumbnailBytes = await _generateThumbnailBytes(artCropPath);
-      final thumbnailPath = await store.cacheThumbnailBytes(thumbnailBytes);
+      if (!context.mounted) return;
       final editedOcrText = await _editOcrText(context, ocrText);
+      if (!context.mounted) return;
       if (editedOcrText == null) {
         _showSnack(context, 'Capture canceled');
         return;
@@ -85,11 +87,14 @@ class CaptureFlow {
         context,
         suggestedBucketId: suggestedBucketId,
       );
+      if (!context.mounted) return;
       if (bucketId == null) {
         _showSnack(context, 'Capture canceled');
         return;
       }
 
+      final thumbnailBytes = await _generateThumbnailBytes(artCropPath);
+      final thumbnailPath = await store.cacheThumbnailBytes(thumbnailBytes);
       final resolvedOcrText = _resolveOcrText(
         originalText: ocrText,
         editedText: editedOcrText,
@@ -104,8 +109,10 @@ class CaptureFlow {
         ),
       );
 
+      if (!context.mounted) return;
       _showSnack(context, _buildOcrSnackMessage(resolvedOcrText));
     } catch (_) {
+      if (!context.mounted) return;
       _showSnack(context, 'Capture failed');
     } finally {
       if (shouldDeleteWorking) {
@@ -166,16 +173,17 @@ class CaptureFlow {
             }
           }
         }
+        final selectedSuggestion = suggestedBucket;
         return SafeArea(
           child: ListView(
             shrinkWrap: true,
             children: [
               const ListTile(title: Text('Add to step')),
-              if (suggestedBucket != null) ...[
+              if (selectedSuggestion != null) ...[
                 ListTile(
                   leading: const Icon(Icons.auto_awesome_outlined),
-                  title: Text('Suggested: ${suggestedBucket.label}'),
-                  onTap: () => Navigator.of(context).pop(suggestedBucket.id),
+                  title: Text('Suggested: ${selectedSuggestion.label}'),
+                  onTap: () => Navigator.of(context).pop(selectedSuggestion.id),
                 ),
                 const Divider(height: 1),
               ],
