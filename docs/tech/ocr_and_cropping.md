@@ -14,6 +14,7 @@ Suggested package:
 - OCR runs a best-of pass: original crop, then a preprocessed pass, then a high-contrast fallback if needed.
 - Preprocessing includes resize for OCR, grayscale, contrast boost, normalize, and (fallback) luminance threshold.
 - User reviews/edits the OCR text before choosing a step.
+- Bucket picker shows a suggested step based on OCR text; user can override.
 
 ## Cropping requirements
 Two regions from one capture:
@@ -39,9 +40,11 @@ MVP should start with Pattern B.
 ## Auto-bucketing heuristics (first pass)
 Regex-based suggestion on OCR text:
 - `\bat the beginning of (your|each|the) upkeep\b` -> beginning.upkeep
+- `\bat the beginning of (your|each|the) draw step\b` -> beginning.draw
 - `\bat the beginning of (the )?combat\b` -> combat.begin
 - `\bwhenever .* attacks\b` / `\bwhen(ever)? .* attacks\b` -> combat.attackers
 - `\bwhenever .* blocks\b` / `\bbecomes blocked\b` -> combat.blockers
+- `\bdeals combat damage\b` -> combat.damage
 - `\bat end of combat\b` -> combat.end
 - `\bat the beginning of the end step\b` / legacy “at end of turn” -> ending.endStep
 - `\buntil end of turn\b` / `\bthis turn\b` -> ending.cleanup (expiry reminder)

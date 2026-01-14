@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../models/timeline_item.dart';
 import '../../mtg/buckets.dart';
+import '../../mtg/ocr_bucket_classifier.dart';
 import '../../session/session_item_id.dart';
 import '../../session/session_scope.dart';
 import '../../session/session_store.dart';
@@ -73,7 +74,17 @@ class CaptureFlow {
         _showSnack(context, 'Capture canceled');
         return;
       }
-      final bucketId = await _pickBucket(context);
+      final suggestionText = _buildSuggestionText(
+        originalText: ocrText,
+        editedText: editedOcrText,
+      );
+      final suggestedBucketId = suggestionText == null
+          ? null
+          : OcrBucketClassifier.suggestBucketId(suggestionText);
+      final bucketId = await _pickBucket(
+        context,
+        suggestedBucketId: suggestedBucketId,
+      );
       if (bucketId == null) {
         _showSnack(context, 'Capture canceled');
         return;
@@ -134,22 +145,45 @@ class CaptureFlow {
     );
   }
 
-  static Future<String?> _pickBucket(BuildContext context) {
+  static Future<String?> _pickBucket(
+    BuildContext context, {
+    String? suggestedBucketId,
+  }) {
     return showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       builder: (context) {
+        final buckets = [
+          for (final bucket in MtgBuckets.ordered)
+            if (bucket.id != MtgBuckets.trash.id) bucket,
+        ];
+        MtgBucketDefinition? suggestedBucket;
+        if (suggestedBucketId != null) {
+          for (final bucket in buckets) {
+            if (bucket.id == suggestedBucketId) {
+              suggestedBucket = bucket;
+              break;
+            }
+          }
+        }
         return SafeArea(
           child: ListView(
             shrinkWrap: true,
             children: [
               const ListTile(title: Text('Add to step')),
-              for (final bucket in MtgBuckets.ordered)
-                if (bucket.id != MtgBuckets.trash.id)
-                  ListTile(
-                    title: Text(bucket.label),
-                    onTap: () => Navigator.of(context).pop(bucket.id),
-                  ),
+              if (suggestedBucket != null) ...[
+                ListTile(
+                  leading: const Icon(Icons.auto_awesome_outlined),
+                  title: Text('Suggested: ${suggestedBucket.label}'),
+                  onTap: () => Navigator.of(context).pop(suggestedBucket.id),
+                ),
+                const Divider(height: 1),
+              ],
+              for (final bucket in buckets)
+                ListTile(
+                  title: Text(bucket.label),
+                  onTap: () => Navigator.of(context).pop(bucket.id),
+                ),
             ],
           ),
         );
@@ -380,6 +414,17 @@ class CaptureFlow {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  static String? _buildSuggestionText({
+    required String? originalText,
+    required String editedText,
+  }) {
+    final trimmedEdited = editedText.trim();
+    if (trimmedEdited.isNotEmpty) return trimmedEdited;
+    final trimmedOriginal = originalText?.trim() ?? '';
+    if (trimmedOriginal.isEmpty) return null;
+    return trimmedOriginal;
   }
 }
 

@@ -1,12 +1,11 @@
 # Roadmap (Feature Build Order)
 
 ## Current focus (next tasks)
-- Phase 5: on-device OCR integration
+- Phase 7: auto-bucketing suggestions
 Acceptance criteria:
-- Text crop runs through ML Kit and populates OCR text
-- OCR completes before art crop + thumbnail
-- Text crop is deleted immediately after OCR
-- OCR failures create items with "OCR failed" text
+- Classifier suggests a bucket from OCR rules text
+- Bucket picker surfaces the suggestion without auto-selecting
+- Manual override always available
 
 ## Feature build order (MVP-first)
 
