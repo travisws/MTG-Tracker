@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'dart:collection';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -26,6 +26,7 @@ class DeckLibraryStore extends ChangeNotifier {
 
   final List<Deck> _decks = [];
   bool _isLoaded = false;
+  Completer<void>? _loadCompleter;
 
   bool get isLoaded => _isLoaded;
 
@@ -40,18 +41,30 @@ class DeckLibraryStore extends ChangeNotifier {
   String? thumbnailPathFor({required String deckId, required DeckCard card}) {
     if (!card.hasThumbnail) return null;
     if (_thumbnailStore == null) return null;
-    return _thumbnailStore!.thumbnailPathFor(deckId: deckId, cardId: card.id);
+    return _thumbnailStore.thumbnailPathFor(deckId: deckId, cardId: card.id);
   }
 
   Future<void> load() async {
     if (_isLoaded) return;
 
-    final loaded = await _storage?.loadDecks() ?? const <Deck>[];
-    _decks
-      ..clear()
-      ..addAll(loaded);
-    _isLoaded = true;
-    notifyListeners();
+    // If already loading, wait for existing load to complete
+    if (_loadCompleter != null) {
+      await _loadCompleter!.future;
+      return;
+    }
+
+    _loadCompleter = Completer<void>();
+    try {
+      final loaded = await _storage?.loadDecks() ?? const <Deck>[];
+      _decks
+        ..clear()
+        ..addAll(loaded);
+      _isLoaded = true;
+      notifyListeners();
+    } finally {
+      _loadCompleter!.complete();
+      _loadCompleter = null;
+    }
   }
 
   Future<void> createDeck(String name) async {
@@ -199,7 +212,7 @@ class DeckLibraryStore extends ChangeNotifier {
     var hasThumbnail = false;
     if (_thumbnailStore != null && thumbnailBytes != null) {
       try {
-        await _thumbnailStore!.writeBytes(
+        await _thumbnailStore.writeBytes(
           deckId: deckId,
           cardId: cardId,
           bytes: thumbnailBytes,

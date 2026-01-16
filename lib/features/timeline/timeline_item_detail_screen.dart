@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../mtg/buckets.dart';
 import '../../session/session_scope.dart';
+import '../../session/session_store.dart';
 import 'widgets/move_to_bucket_sheet.dart';
 import 'widgets/timeline_thumbnail.dart';
 
@@ -26,20 +27,36 @@ class TimelineItemDetailScreen extends StatefulWidget {
 class _TimelineItemDetailScreenState extends State<TimelineItemDetailScreen> {
   final TextEditingController _labelController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
-  bool _didLoad = false;
+  SessionStore? _store;
+  bool _itemWasDeleted = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_didLoad) return;
-    final item = SessionScope.of(context).itemById(widget.itemId);
+    if (_store != null) return;
+    final store = SessionScope.of(context);
+    _store = store;
+    final item = store.itemById(widget.itemId);
     _labelController.text = item?.label ?? '';
     _noteController.text = item?.note ?? '';
-    _didLoad = true;
+    store.addListener(_onStoreChanged);
+  }
+
+  void _onStoreChanged() {
+    if (_itemWasDeleted) return;
+    final item = _store?.itemById(widget.itemId);
+    if (item == null && mounted) {
+      _itemWasDeleted = true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Card was deleted')),
+      );
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   void dispose() {
+    _store?.removeListener(_onStoreChanged);
     _labelController.dispose();
     _noteController.dispose();
     super.dispose();
@@ -137,6 +154,14 @@ class _TimelineItemDetailScreenState extends State<TimelineItemDetailScreen> {
 
   void _saveAndPop(BuildContext context) {
     final store = SessionScope.of(context);
+    final item = store.itemById(widget.itemId);
+    if (item == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Card was deleted')),
+      );
+      Navigator.of(context).pop();
+      return;
+    }
     final label = _labelController.text.trim();
     final noteText = _noteController.text.trim();
     store.updateItemDetails(

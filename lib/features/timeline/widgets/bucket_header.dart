@@ -44,7 +44,7 @@ class BucketHeader extends StatelessWidget {
               ),
               if (count > 0) _CountBadge(count: count),
               IconButton(
-                key: Key('bucket-toggle-$bucketId'),
+                key: ValueKey('bucket-toggle-$bucketId'),
                 tooltip: isExpanded ? 'Collapse $label' : 'Expand $label',
                 onPressed: onToggleExpanded,
                 icon: AnimatedRotation(

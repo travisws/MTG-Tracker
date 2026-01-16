@@ -52,10 +52,15 @@ class TimelineThumbnail extends StatelessWidget {
       return placeholder;
     }
 
+    final file = File(path);
+    if (!file.existsSync()) {
+      return placeholder;
+    }
+
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheSize = (size * pixelRatio).round();
     return Image.file(
-      File(path),
+      file,
       fit: BoxFit.cover,
       cacheWidth: cacheSize,
       cacheHeight: cacheSize,

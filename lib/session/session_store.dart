@@ -1,5 +1,4 @@
 import 'dart:collection';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -29,6 +28,7 @@ class SessionStore extends ChangeNotifier {
           ? item.bucketId
           : MtgBuckets.staticEffects.id;
       _itemsByBucketId[bucketId]!.add(item.copyWith(bucketId: bucketId));
+      _bucketIdByItemId[item.id] = bucketId;
     }
 
     for (final bucket in MtgBuckets.ordered) {
@@ -53,6 +53,8 @@ class SessionStore extends ChangeNotifier {
   String? _activeDeckId;
 
   final Map<String, int> _restoreIndexByItemId = {};
+  // Cache: itemId -> bucketId for O(1) bucket lookup
+  final Map<String, String> _bucketIdByItemId = {};
 
   UnmodifiableListView<TimelineItem> itemsForBucket(String bucketId) {
     return UnmodifiableListView<TimelineItem>(
@@ -115,6 +117,7 @@ class SessionStore extends ChangeNotifier {
         ? item.bucketId
         : MtgBuckets.staticEffects.id;
     _itemsByBucketId[bucketId]!.add(item.copyWith(bucketId: bucketId));
+    _bucketIdByItemId[item.id] = bucketId;
     _expandedByBucketId[bucketId] = true;
     _visibleByBucketId[bucketId] = true;
     notifyListeners();
@@ -133,13 +136,13 @@ class SessionStore extends ChangeNotifier {
     if (bytes == null || bytes.isEmpty) return null;
     if (_thumbnailCache == null) return null;
     final data = Uint8List.fromList(bytes);
-    return _thumbnailCache!.writeBytes(data);
+    return _thumbnailCache.writeBytes(data);
   }
 
   Future<String?> cacheThumbnailFromFile(String? path) async {
     if (path == null || path.isEmpty) return null;
     if (_thumbnailCache == null) return null;
-    return _thumbnailCache!.copyFromFile(path);
+    return _thumbnailCache.copyFromFile(path);
   }
 
   void moveItem(String itemId, String toBucketId, {int? toIndex}) {
@@ -163,6 +166,7 @@ class SessionStore extends ChangeNotifier {
         : toIndex.clamp(0, toList.length);
     toList.insert(insertIndex, item);
 
+    _bucketIdByItemId[itemId] = toBucketId;
     _restoreIndexByItemId.remove(itemId);
     _expandedByBucketId[toBucketId] = true;
     _visibleByBucketId[toBucketId] = true;
@@ -184,10 +188,23 @@ class SessionStore extends ChangeNotifier {
         );
 
     _restoreIndexByItemId[itemId] = location.index;
+    _bucketIdByItemId[itemId] = MtgBuckets.trash.id;
     _itemsByBucketId[MtgBuckets.trash.id]!.add(item);
     _expandedByBucketId[MtgBuckets.trash.id] = true;
     _visibleByBucketId[MtgBuckets.trash.id] = true;
+
+    // Prune stale restore indices if map is getting large
+    if (_restoreIndexByItemId.length > 50) {
+      _pruneStaleRestoreIndices();
+    }
+
     notifyListeners();
+  }
+
+  void _pruneStaleRestoreIndices() {
+    final trashItems = _itemsByBucketId[MtgBuckets.trash.id] ?? const [];
+    final trashItemIds = {for (final item in trashItems) item.id};
+    _restoreIndexByItemId.removeWhere((id, _) => !trashItemIds.contains(id));
   }
 
   void restoreItem(String itemId) {
@@ -213,6 +230,7 @@ class SessionStore extends ChangeNotifier {
       ),
     );
 
+    _bucketIdByItemId[itemId] = restoreBucketId;
     _expandedByBucketId[restoreBucketId] = true;
     _visibleByBucketId[restoreBucketId] = true;
     notifyListeners();
@@ -225,6 +243,7 @@ class SessionStore extends ChangeNotifier {
       _visibleByBucketId[bucket.id] = MtgBuckets.defaultVisibleBucketIds
           .contains(bucket.id);
     }
+    _bucketIdByItemId.clear();
     _restoreIndexByItemId.clear();
     _activeDeckId = null;
     notifyListeners();
@@ -232,11 +251,18 @@ class SessionStore extends ChangeNotifier {
   }
 
   _ItemLocation? _locateItem(String itemId) {
-    for (final entry in _itemsByBucketId.entries) {
-      final index = entry.value.indexWhere((item) => item.id == itemId);
-      if (index != -1) return _ItemLocation(bucketId: entry.key, index: index);
-    }
-    return null;
+    // O(1) bucket lookup from cache
+    final bucketId = _bucketIdByItemId[itemId];
+    if (bucketId == null) return null;
+
+    final items = _itemsByBucketId[bucketId];
+    if (items == null) return null;
+
+    // O(b) search within bucket (b is typically small)
+    final index = items.indexWhere((item) => item.id == itemId);
+    if (index == -1) return null;
+
+    return _ItemLocation(bucketId: bucketId, index: index);
   }
 }
 

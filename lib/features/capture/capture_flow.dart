@@ -111,9 +111,11 @@ class CaptureFlow {
 
       if (!context.mounted) return;
       _showSnack(context, _buildOcrSnackMessage(resolvedOcrText));
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('CaptureFlow error: $error');
+      debugPrint('Stack trace: $stackTrace');
       if (!context.mounted) return;
-      _showSnack(context, 'Capture failed');
+      _showSnack(context, 'Capture failed: ${_friendlyErrorMessage(error)}');
     } finally {
       if (shouldDeleteWorking) {
         await _safeDelete(workingPath);
@@ -424,6 +426,21 @@ class CaptureFlow {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  static String _friendlyErrorMessage(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('permission')) return 'permission denied';
+    if (message.contains('storage') || message.contains('disk')) {
+      return 'storage error';
+    }
+    if (message.contains('memory') || message.contains('oom')) {
+      return 'image too large';
+    }
+    if (message.contains('file') || message.contains('path')) {
+      return 'file error';
+    }
+    return 'unknown error';
+  }
+
   static String? _buildSuggestionText({
     required String? originalText,
     required String editedText,
@@ -439,9 +456,21 @@ class CaptureFlow {
 const int _ocrMinSide = 900;
 const int _ocrMaxSide = 2000;
 
+/// Maximum input file size in bytes (20MB) to prevent OOM on huge images.
+const int _maxInputFileSize = 20 * 1024 * 1024;
+
+/// Maximum decoded image dimension to prevent OOM during processing.
+const int _maxDecodedDimension = 8192;
+
 Uint8List? _encodeThumbnail(Uint8List bytes) {
+  if (bytes.length > _maxInputFileSize) return null;
+
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return null;
+  if (decoded.width > _maxDecodedDimension ||
+      decoded.height > _maxDecodedDimension) {
+    return null;
+  }
 
   final square = img.copyResizeCropSquare(
     decoded,
@@ -452,8 +481,14 @@ Uint8List? _encodeThumbnail(Uint8List bytes) {
 }
 
 Uint8List? _preprocessOcrImage(Uint8List bytes) {
+  if (bytes.length > _maxInputFileSize) return null;
+
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return null;
+  if (decoded.width > _maxDecodedDimension ||
+      decoded.height > _maxDecodedDimension) {
+    return null;
+  }
 
   var processed = _resizeForOcr(decoded);
   processed = img.grayscale(processed);
@@ -464,8 +499,14 @@ Uint8List? _preprocessOcrImage(Uint8List bytes) {
 }
 
 Uint8List? _preprocessOcrImageHighContrast(Uint8List bytes) {
+  if (bytes.length > _maxInputFileSize) return null;
+
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return null;
+  if (decoded.width > _maxDecodedDimension ||
+      decoded.height > _maxDecodedDimension) {
+    return null;
+  }
 
   var processed = _resizeForOcr(decoded);
   processed = img.grayscale(processed);

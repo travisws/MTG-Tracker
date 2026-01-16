@@ -221,6 +221,7 @@ class DeckDetailScreen extends StatelessWidget {
       added += 1;
     }
 
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
@@ -239,7 +240,7 @@ class DeckDetailScreen extends StatelessWidget {
       builder: (context) =>
           _BucketPickerSheet(initialBucketId: card.defaultBucketId),
     );
-    if (selectedBucketId == null) return;
+    if (selectedBucketId == null || !context.mounted) return;
 
     final deckStore = DeckLibraryScope.of(context);
     final deckThumbPath = deckStore.thumbnailPathFor(
@@ -426,7 +427,7 @@ class _DeckCardThumbnail extends StatelessWidget {
         fit: BoxFit.cover,
         cacheWidth: cacheSize,
         cacheHeight: cacheSize,
-        errorBuilder: (_, __, ___) => placeholder,
+        errorBuilder: (_, _, _) => placeholder,
       ),
     );
   }
